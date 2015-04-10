@@ -1,0 +1,12 @@
+{application, erlhome,
+ [
+  {description, "Home automation controller"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { erlhome_app, []}},
+  {env, []}
+ ]}.
