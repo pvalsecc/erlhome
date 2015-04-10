@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 10. Apr 2015 2:06 PM
 %%%-------------------------------------------------------------------
--module(logic_gate).
+-module(ehome_element).
 -author("pvalsecc").
 
 -behaviour(gen_server).
@@ -14,12 +14,14 @@
 -callback init(Args :: list()) ->
     State :: any().
 
--callback new_inputs(Gate :: pid(), Inputs :: list(boolean()),
+-callback new_inputs(Inputs :: list(boolean()),
+                     OldOutputs :: list(boolean()),
                      State :: any()) ->
-    undefined.
+    NewInner :: any() |
+    {NewOutputs :: list(boolean), NewInner :: any()}.
 
 %% API
--export([start_link/5, set_input/3, new_outputs/3, connect/4]).
+-export([start_link/5, set_input/3, new_outputs/3, connect/4, get_outputs/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -30,6 +32,7 @@
     code_change/3]).
 
 -record(state, {
+    name :: string(),
     implementation :: atom(),
     input_values :: list(boolean()),
     output_values :: list(boolean()),
@@ -54,16 +57,20 @@ start_link(Name, Module, NbInputs, NbOutputs, Params) ->
     gen_server:start_link(?MODULE, [Name, Module, NbInputs, NbOutputs, Params],
         []).
 
+-spec(set_input(Gate :: pid(), Index :: pos_integer(), Value :: boolean()) -> ok).
 set_input(Gate, Index, Value) ->
     gen_server:cast(Gate, {set_input, Index, Value}).
 
 new_outputs(Gate, NewOutputs, NewInner) ->
     gen_server:cast(Gate, {new_outputs, NewOutputs, NewInner}).
 
--spec(connect(Gate :: pid(), Output :: integer(), Destination :: pid(),
-              Input :: integer()) -> any()).
+-spec(connect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
+              Input :: pos_integer()) -> ok).
 connect(Gate, Output, Destination, Input) ->
     gen_server:cast(Gate, {connect, Output, Destination, Input}).
+
+get_outputs(Gate) ->
+    gen_server:call(Gate, {get_outputs}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -83,8 +90,9 @@ connect(Gate, Output, Destination, Input) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([_Name, Module, NbInputs, NbOutputs, Params]) ->
-    {ok, #state{implementation = Module,
+init([Name, Module, NbInputs, NbOutputs, Params]) ->
+    {ok, #state{name = Name,
+                implementation = Module,
                 input_values = false_list(NbInputs),
                 output_values = false_list(NbOutputs),
                 output_connections = create_list(NbOutputs, []),
@@ -105,8 +113,8 @@ init([_Name, Module, NbInputs, NbOutputs, Params]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+handle_call({get_outputs}, _From, #state{output_values = Outputs} = State) ->
+    {reply, Outputs, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -121,32 +129,24 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({set_input, Index, Value},
         #state{implementation = Impl, input_values = Inputs,
+               output_values = Outputs,
                inner_state = Inner} = State) ->
     NewInputs = replace_list(Inputs, Index, Value),
-    Impl:new_inputs(self(), NewInputs, Inner),
-    {no_reply, State#state{input_values = NewInputs}};
-
-handle_cast({new_outputs, NewOutputs, NewInner},
-            #state{output_values = Outputs,
-                   output_connections = Connections} = State) ->
-    case NewOutputs of
-        Outputs ->
-            %Nothing changed in the outputs
-            {noreply, State#state{inner_state = NewInner}};
-        _ ->
-            notify(Outputs, NewOutputs, Connections),
-            {noreply, State#state{output_values = NewOutputs,
-                                  inner_state = NewInner}}
+    case Impl:new_inputs(NewInputs, Outputs, Inner) of
+        {NewOutputs, NewInner} ->
+            handle_new_outputs(NewOutputs, NewInner, State#state{input_values = NewInputs});
+        NewInner ->
+            {noreply, State#state{input_values = NewInputs, inner_state = NewInner}}
     end;
+
+handle_cast({new_outputs, NewOutputs, NewInner}, State) ->
+    handle_new_outputs(NewOutputs, NewInner, State);
 
 handle_cast({connect, Output, Destination, Input},
             #state{output_connections = Connections} = State) ->
     Cur = lists:nth(Output, Connections),
-    NewConnections = replace_list(Cur, Output, [{Destination, Input}|Cur]),
-    {noreply, State#state{output_connections = NewConnections}};
-
-handle_cast(_Request, State) ->
-    {noreply, State}.
+    NewConnections = replace_list(Connections, Output, [{Destination, Input}|Cur]),
+    {noreply, State#state{output_connections = NewConnections}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -199,6 +199,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+handle_new_outputs(NewOutputs, NewInner,
+    #state{name = Name, output_values = Outputs, output_connections = Connections} = State) ->
+    io:format("~s: ~w~n", [Name, NewOutputs]),
+    notify(Outputs, NewOutputs, Connections),
+    {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
+
 false_list(N) -> create_list(N, false).
 
 create_list(0, _Value) ->
@@ -206,7 +212,7 @@ create_list(0, _Value) ->
 create_list(N, Value) ->
     [Value | create_list(N-1, Value)].
 
-replace_list([_|Rest], 0, Value) ->
+replace_list([_|Rest], 1, Value) ->
     [Value|Rest];
 replace_list([Head|Rest], Index, Value) ->
     [Head|replace_list(Rest, Index-1, Value)].
@@ -214,6 +220,7 @@ replace_list([Head|Rest], Index, Value) ->
 notify([], [], []) ->
     undefined;
 notify([H|ROld], [H|RNew], [_|RCon]) ->
+    %Output not changed
     notify(ROld, RNew, RCon);
 notify([_HOld|ROld], [HNew| RNew], [HCon|RCon]) ->
     notify_all(HNew, HCon),
@@ -236,6 +243,7 @@ false_list_test() ->
     [false, false, false] = false_list(3).
 
 replace_list_test() ->
-    [x, 2, 3] = replace_list([1, 2, 3], 0, x),
-    [1, x, 3] = replace_list([1, 2, 3], 1, x),
-    [1, 2, x] = replace_list([1, 2, 3], 2, x).
+    List = [1, 2, 3],
+    [x, 2, 3] = replace_list(List, 1, x),
+    [1, x, 3] = replace_list(List, 2, x),
+    [1, 2, x] = replace_list(List, 3, x).
