@@ -12,7 +12,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([and_start_link/1, or_start_link/1]).
+-export([and_start_link/1, or_start_link/1, xor_start_link/1]).
 
 %% ehome_element callbacks
 -export([init/1, new_inputs/3]).
@@ -30,6 +30,11 @@ and_start_link(Name) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 or_start_link(Name) ->
     start_link(Name, fun(A, B) -> A or B end).
+
+-spec(xor_start_link(Name :: term()) ->
+    {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
+xor_start_link(Name) ->
+    start_link(Name, fun(A, B) -> A xor B end).
 
 start_link(Name, Fun) ->
     ehome_element:start_link(Name, ?MODULE, 2, 1, [Fun]).
@@ -74,6 +79,16 @@ or_test() ->
     ehome_element:set_input(Or, 2, true),
     wait_queue_empty(Or),
     [true] = ehome_element:get_outputs(Or).
+
+xor_test() ->
+    {ok, Or} = xor_start_link("XOR"),
+    [false] = ehome_element:get_outputs(Or),
+    ehome_element:set_input(Or, 1, true),
+    wait_queue_empty(Or),
+    [true] = ehome_element:get_outputs(Or),
+    ehome_element:set_input(Or, 2, true),
+    wait_queue_empty(Or),
+    [false] = ehome_element:get_outputs(Or).
 
 connection_test() ->
     {ok, And} = and_start_link("AND"),
