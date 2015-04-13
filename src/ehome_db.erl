@@ -1,27 +1,19 @@
 %%%-------------------------------------------------------------------
 %%% @author pvalsecc
-%%% @copyright (C) 2015, Patrick Valsecchi
+%%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%% Behaviour for a logic gate
+%%%
 %%% @end
-%%% Created : 10. Apr 2015 2:06 PM
+%%% Created : 13. Apr 2015 8:40 AM
 %%%-------------------------------------------------------------------
--module(ehome_element).
+-module(ehome_db).
 -author("pvalsecc").
 
 -behaviour(gen_server).
 
--callback init(Args :: list()) ->
-    State :: any().
-
--callback new_inputs(Inputs :: list(boolean()),
-        OldOutputs :: list(boolean()),
-        State :: any()) ->
-    NewInner :: any() |
-    {NewOutputs :: list(boolean), NewInner :: any()}.
-
 %% API
--export([start_link/5, set_input/3, new_outputs/3, connect/4, get_outputs/1]).
+-export([start_link/0, get_schemas/0, get_schema/1, create_schema/1,
+    update_schema/2, delete_schema/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -31,14 +23,11 @@
     terminate/2,
     code_change/3]).
 
--record(state, {
-    name :: string(),
-    implementation :: atom(),
-    input_values :: list(boolean()),
-    output_values :: list(boolean()),
-    output_connections :: list(list({pid(), integer()})),
-    inner_state :: any()
-}).
+-define(SERVER, ?MODULE).
+
+-include("ehome_types.hrl").
+
+-record(state, {schemas = [] :: [#schema{}], next_id :: integer()}).
 
 %%%===================================================================
 %%% API
@@ -50,27 +39,34 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(Name :: term(), Module :: atom(),
-        NbInputs :: integer(), NbOutputs :: integer(), Params :: list()) ->
+-spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Name, Module, NbInputs, NbOutputs, Params) ->
-    gen_server:start_link(?MODULE, [Name, Module, NbInputs, NbOutputs, Params],
-        []).
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
--spec(set_input(Gate :: pid(), Index :: pos_integer(), Value :: boolean()) -> ok).
-set_input(Gate, Index, Value) ->
-    gen_server:cast(Gate, {set_input, Index, Value}).
 
-new_outputs(Gate, NewOutputs, NewInner) ->
-    gen_server:cast(Gate, {new_outputs, NewOutputs, NewInner}).
+-spec(get_schemas() -> [#schema{}]).
+get_schemas() ->
+    gen_server:call(?SERVER, {get_schemas}).
 
--spec(connect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
-        Input :: pos_integer()) -> ok).
-connect(Gate, Output, Destination, Input) ->
-    gen_server:cast(Gate, {connect, Output, Destination, Input}).
+-spec(get_schema(ID :: integer()) -> #schema{}).
+get_schema(ID) ->
+    gen_server:call(?SERVER, {get_schema, ID}).
 
-get_outputs(Gate) ->
-    gen_server:call(Gate, {get_outputs}).
+-spec(create_schema(#schema{}) -> ID :: integer()).
+create_schema(#schema{id = undefined} = Schema) ->
+    gen_server:call(?SERVER, {create_schema, Schema}).
+
+-spec(update_schema(ID :: integer(), #schema{}) -> boolean()).
+update_schema(ID, #schema{id = undefined} = Schema) ->
+    gen_server:call(?SERVER, {update_schema, ID, Schema});
+update_schema(ID, #schema{id = ID} = Schema) ->
+    gen_server:call(?SERVER, {update_schema, ID, Schema}).
+
+-spec(delete_schema(integer()) -> true|false).
+delete_schema(ID) ->
+    gen_server:call(?SERVER, {delete_schema, ID}).
+
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -90,13 +86,9 @@ get_outputs(Gate) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([Name, Module, NbInputs, NbOutputs, Params]) ->
-    {ok, #state{name = Name,
-        implementation = Module,
-        input_values = false_list(NbInputs),
-        output_values = false_list(NbOutputs),
-        output_connections = create_list(NbOutputs, []),
-        inner_state = Module:init(Params)}}.
+init([]) ->
+    %TODO: load from disk
+    {ok, #state{next_id = 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -113,8 +105,20 @@ init([Name, Module, NbInputs, NbOutputs, Params]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({get_outputs}, _From, #state{output_values = Outputs} = State) ->
-    {reply, Outputs, State}.
+handle_call({get_schemas}, _From, #state{schemas = Schemas} = State) ->
+    {reply, Schemas, State};
+handle_call({get_schema, ID}, _From, #state{schemas = Schemas} = State) ->
+    {reply, get_schema(ID, Schemas), State};
+handle_call({create_schema, Schema}, _From, State) ->
+    {ID, NewState} = add_schema(Schema, State),
+    {reply, ID, NewState};
+handle_call({update_schema, ID, Schema}, _From, State) ->
+    {Result, NewState} = update_schema(ID, Schema, State),
+    {reply, Result, NewState};
+handle_call({delete_schema, ID}, _From, State) ->
+    {Result, NewState} = delete_schema(ID, State),
+    {reply, Result, NewState}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -127,28 +131,8 @@ handle_call({get_outputs}, _From, #state{output_values = Outputs} = State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({set_input, Index, Value},
-        #state{implementation = Impl, input_values = Inputs,
-            output_values = Outputs,
-            inner_state = Inner} = State) ->
-    NewInputs = replace_list(Inputs, Index, Value),
-    case Impl:new_inputs(NewInputs, Outputs, Inner) of
-        {NewOutputs, NewInner} ->
-            handle_new_outputs(NewOutputs, NewInner,
-                State#state{input_values = NewInputs});
-        NewInner ->
-            {noreply, State#state{input_values = NewInputs, inner_state = NewInner}}
-    end;
-
-handle_cast({new_outputs, NewOutputs, NewInner}, State) ->
-    handle_new_outputs(NewOutputs, NewInner, State);
-
-handle_cast({connect, Output, Destination, Input},
-        #state{output_connections = Connections} = State) ->
-    Cur = lists:nth(Output, Connections),
-    NewConnections =
-        replace_list(Connections, Output, [{Destination, Input} | Cur]),
-    {noreply, State#state{output_connections = NewConnections}}.
+handle_cast(_Request, State) ->
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -201,52 +185,53 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-handle_new_outputs(NewOutputs, NewInner,
-        #state{name = Name, output_values = Outputs, output_connections = Connections} =
-            State) ->
-    io:format("~s: ~w~n", [Name, NewOutputs]),
-    notify(Outputs, NewOutputs, Connections),
-    {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
+add_schema(Schema, #state{next_id = ID, schemas = Schemas} = State) ->
+    NewSchema = Schema#schema{id = ID},
+    {ID, State#state{next_id = ID + 1, schemas = [NewSchema | Schemas]}}.
 
-false_list(N) -> create_list(N, false).
+get_schema(ID, Schemas) ->
+    lists:keyfind(ID, #schema.id, Schemas).
 
-create_list(0, _Value) ->
-    [];
-create_list(N, Value) ->
-    [Value | create_list(N - 1, Value)].
+update_schema(ID, Schema, #state{schemas = Schemas} = State) ->
+    NewSchema = Schema#schema{id = ID},
+    NewSchemas = lists:keyreplace(ID, #schema.id, Schemas, NewSchema),
+    {true, State#state{schemas=NewSchemas}}.
 
-replace_list([_ | Rest], 1, Value) ->
-    [Value | Rest];
-replace_list([Head | Rest], Index, Value) ->
-    [Head | replace_list(Rest, Index - 1, Value)].
+delete_schema(ID, #state{schemas = Schemas} = State) ->
+    case lists:keydelete(ID, #schema.id, Schemas) of
+        Schemas -> {false, State};
+        NewSchemas -> {true, State#state{schemas = NewSchemas}}
+    end.
 
-notify([], [], []) ->
-    undefined;
-notify([H | ROld], [H | RNew], [_ | RCon]) ->
-    %Output not changed
-    notify(ROld, RNew, RCon);
-notify([_HOld | ROld], [HNew | RNew], [HCon | RCon]) ->
-    notify_all(HNew, HCon),
-    notify(ROld, RNew, RCon).
 
-notify_all(_Value, []) ->
-    undefined;
-notify_all(Value, [{Pid, Input} | Rest]) ->
-    set_input(Pid, Input, Value),
-    notify_all(Value, Rest).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% UTs
+%%%===================================================================
+%%% Tests
+%%%===================================================================
 
 -include_lib("eunit/include/eunit.hrl").
 
-false_list_test() ->
-    [] = false_list(0),
-    [false] = false_list(1),
-    [false, false, false] = false_list(3).
+add_schema_test() ->
+    NextId = 12,
+    State = #state{next_id = NextId},
+    Schema = #schema{name = "toto"},
+    ExpectedSchema = Schema#schema{id = NextId},
+    ExpectedState = State#state{next_id = NextId + 1,
+                                schemas = [ExpectedSchema]},
+    {NextId, ExpectedState} = add_schema(Schema, State).
 
-replace_list_test() ->
-    List = [1, 2, 3],
-    [x, 2, 3] = replace_list(List, 1, x),
-    [1, x, 3] = replace_list(List, 2, x),
-    [1, 2, x] = replace_list(List, 3, x).
+schema_test() ->
+    {ok, _PID} = start_link(),
+    [] = get_schemas(),
+    Schema = #schema{name="toto"},
+    1 = ID = create_schema(Schema),
+    NewSchema = Schema#schema{id = ID},
+    [NewSchema] = get_schemas(),
+    NewSchema = get_schema(ID),
+    Renamed = NewSchema#schema{name = "titi"},
+    true = update_schema(ID, Renamed),
+    Renamed = get_schema(ID),
+    false = delete_schema(ID + 1),
+    [Renamed] = get_schemas(),
+    true = delete_schema(ID),
+    [] = get_schemas().
