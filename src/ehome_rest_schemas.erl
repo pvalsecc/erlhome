@@ -30,7 +30,7 @@ content_types_provided(Req, State) ->
     ], Req, State}.
 
 content_types_accepted(Req, State) ->
-    {[{{<<"application">>, <<"x-www-form-urlencoded">>, []}, create_schema}],
+    {[{{<<"application">>, <<"json">>, []}, create_schema}],
         Req, State}.
 
 resource_exists(Req, _State) ->
@@ -45,17 +45,19 @@ resource_exists(Req, _State) ->
     end.
 
 create_schema(Req, State) ->
-    {ok, [{<<"schema">>, SchemaJson}], Req2} = cowboy_req:body_qs(Req),
+    {ok, SchemaJson, Req2} = cowboy_req:body(Req),
     Schema = json2schema(SchemaJson),
     case cowboy_req:method(Req2) of
         <<"POST">> ->
             ID = ehome_db:create_schema(Schema),
-            {{true, schemaId2Url(ID)}, Req2, State};
+            Req3 = cowboy_req:set_resp_header(<<"location">>,
+                schemaId2Url(ID), Req2),
+            io:format("~w~n", [cowboy_req:has_resp_header(<<"location">>,
+                Req3)]),
+            {true, Req3, State};
         <<"PUT">> ->
             ID = cowboy_req:binding(id, Req2),
-            {ehome_db:update_schema(ID, Schema), Req2, State};
-        _ ->
-            {false, Req2, State}
+            {ehome_db:update_schema(ID, Schema), Req2, State}
     end.
 
 delete_resource(Req, State) ->
