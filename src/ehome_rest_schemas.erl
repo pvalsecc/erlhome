@@ -9,28 +9,14 @@
 -module(ehome_rest_schemas).
 
 %% API
--export([init/2, allowed_methods/2, content_types_provided/2,
-    content_types_accepted/2, resource_exists/2, delete_resource/2]).
+-export([resource_exists/2, delete_resource/2]).
 
 -export([from_json/2, to_json/2]).
 
+-include_lib("mixer/include/mixer.hrl").
+-mixin([ehome_rest_base]).
+
 -include("ehome_types.hrl").
-
-init(Req, Opts) ->
-    random:seed(now()),
-    {cowboy_rest, Req, Opts}.
-
-allowed_methods(Req, State) ->
-    {[<<"HEAD">>, <<"GET">>, <<"POST">>, <<"PUT">>, <<"DELETE">>], Req, State}.
-
-content_types_provided(Req, State) ->
-    {[
-        {{<<"application">>, <<"json">>, []}, to_json}
-    ], Req, State}.
-
-content_types_accepted(Req, State) ->
-    {[{{<<"application">>, <<"json">>, []}, from_json}],
-        Req, State}.
 
 resource_exists(Req, _State) ->
     case cowboy_req:binding(id, Req) of
@@ -84,9 +70,12 @@ schemaId2Url(Id) ->
     StrId = binary:list_to_bin(integer_to_list(Id)),
     <<"/schemas/", StrId/bits>>.
 
-schema2json(#schema{id = Id, name = Name}) ->
+schema2json(#schema{id = Id, name = Name, elements = Elements}) ->
     Href = schemaId2Url(Id),
-    #{name => Name, href => Href}.
+    ElementsJson = lists:map(fun(Element) ->
+        ehome_rest_elements:sub2json(Id, Element)
+    end, Elements),
+    #{name => Name, href => Href, elements => ElementsJson}.
 
 json2schema(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),

@@ -94,7 +94,7 @@ create_element(SchemaId, #element{id = undefined} = Element) ->
 -spec(update_element(SchemaId :: integer(), ElementId :: integer(),
         Element :: #element{}) -> true|false).
 update_element(SchemaId, ElementId, #element{id = undefined} = Element) ->
-    update_element(SchemaId, ElementId, Element#element{id = undefined});
+    update_element(SchemaId, ElementId, Element#element{id = ElementId});
 update_element(SchemaId, ElementId, #element{id = ElementId} = Element) ->
     gen_server:call(?SERVER,
         {update_sub, SchemaId, ElementId, Element,

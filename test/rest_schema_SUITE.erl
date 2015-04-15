@@ -15,6 +15,9 @@
 
 -export([create/1, delete/1, update/1]).
 
+-export([create_schema/1, update_url/2, delete_url/1, get_json/1,
+get_json_fail/1]).
+
 all() ->
     [create, delete, update].
 
@@ -32,7 +35,7 @@ end_per_testcase(_TestCase, Config) ->
 stop([]) ->
     ok;
 stop([H|Rest]) ->
-    application:stop(H),
+    ok = application:stop(H),
     stop(Rest).
 
 
@@ -42,7 +45,7 @@ create(_Config) ->
     [] = get_schemas(),
     Url1 = "/schemas/1",
     Url1 = create_schema("toto"),
-    #{<<"name">> := <<"toto">>} = get_schema(Url1),
+    #{<<"name">> := <<"toto">>} = get_json(Url1),
 
     Url2 = "/schemas/2",
     Url2 = create_schema("tutu"),
@@ -53,38 +56,36 @@ create(_Config) ->
 
 delete(_Config) ->
     Url = create_schema("toto"),
-    delete_schema(Url),
-    get_schema_fail(Url),
+    delete_url(Url),
+    get_json_fail(Url),
     [] = get_schemas().
 
 update(_Config) ->
     Url = create_schema("toto"),
-    #{<<"name">> := <<"toto">>} = get_schema(Url),
+    #{<<"name">> := <<"toto">>} = get_json(Url),
     update_schema(Url, "tutu"),
-    #{<<"name">> := <<"tutu">>} = get_schema(Url).
+    #{<<"name">> := <<"tutu">>} = get_json(Url).
 
 %% Utils ============================
 
 get_schemas() ->
-    {ok, {{_Version, 200, _Reason}, _Headers, Body}} =
-        httpc:request(get, {"http://localhost:8080/schemas", []}, [], []),
-    jiffy:decode(Body, [return_maps]).
+    get_json("/schemas").
 
-get_schema(Url) ->
+get_json(Url) ->
     {ok, {{_Version, 200, _Reason}, _Headers, Body}} =
         httpc:request(get, {"http://localhost:8080" ++ Url, []}, [], []),
     jiffy:decode(Body, [return_maps]).
 
-get_schema_fail(Url) ->
+get_json_fail(Url) ->
     {ok, {{_Version, 404, _Reason}, _Headers, _Body}} =
         httpc:request(get, {"http://localhost:8080" ++ Url, []}, [], []).
 
-delete_schema(Url) ->
+delete_url(Url) ->
     {ok, {{_Version, 204, _Reason}, _Headers, Body}} =
         httpc:request(delete, {"http://localhost:8080" ++ Url, []}, [], []).
 
 create_schema(Name) ->
-    Json = "{\"name\":\"" ++ Name ++ "\"}",
+    Json = create_json(Name),
     %TODO: why is it not 201?
     {ok, {{_Version, 204, _Reason}, Headers, Body}} =
         httpc:request(post, {"http://localhost:8080/schemas", [],
@@ -95,8 +96,13 @@ create_schema(Name) ->
     Location.
 
 update_schema(Url, Name) ->
-    Json = "{\"name\":\"" ++ Name ++ "\"}",
-    {ok, {{_Version, 204, _Reason}, Headers, Body}} =
+    update_url(Url, create_json(Name)).
+
+create_json(Name) ->
+    "{\"name\":\"" ++ Name ++ "\"}".
+
+update_url(Url, Json) ->
+    {ok, {{_Version, 204, _Reason}, _Headers, Body}} =
         httpc:request(put, {"http://localhost:8080" ++ Url, [],
             "application/json", Json},
             [{autoredirect, false}], []),
