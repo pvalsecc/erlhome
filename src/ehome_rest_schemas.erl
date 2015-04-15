@@ -14,8 +14,7 @@
 
 -export([create_schema/2, schema_json/2]).
 
-
--record(schema, {id :: integer(), name :: binary()}).
+-include("ehome_types.hrl").
 
 init(Req, Opts) ->
     random:seed(now()),

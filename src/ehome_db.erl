@@ -12,8 +12,11 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, get_schemas/0, get_schema/1, create_schema/1,
-    update_schema/2, delete_schema/1]).
+-export([start_link/0]).
+-export([get_schemas/0, get_schema/1, create_schema/1, update_schema/2,
+    delete_schema/1]).
+-export([create_element/2, update_element/3, delete_element/2,
+    get_element/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -27,7 +30,11 @@
 
 -include("ehome_types.hrl").
 
--record(state, {schemas = [] :: [#schema{}], next_id :: integer()}).
+-record(state, {
+    schemas = [] :: [#schema{}],
+    next_schema_id :: integer(),
+    next_element_id :: integer()
+}).
 
 %%%===================================================================
 %%% API
@@ -44,29 +51,53 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+-spec(stop() -> ok).
+stop() ->
+    gen_server:cast(?SERVER, stop).
 
 -spec(get_schemas() -> [#schema{}]).
 get_schemas() ->
     gen_server:call(?SERVER, {get_schemas}).
 
--spec(get_schema(ID :: integer()) -> #schema{}).
-get_schema(ID) ->
-    gen_server:call(?SERVER, {get_schema, ID}).
+-spec(get_schema(SchemaId :: integer()) -> #schema{}).
+get_schema(SchemaId) ->
+    gen_server:call(?SERVER, {get_schema, SchemaId}).
 
--spec(create_schema(#schema{}) -> ID :: integer()).
+-spec(create_schema(#schema{}) -> SchemaId :: integer()).
 create_schema(#schema{id = undefined} = Schema) ->
     gen_server:call(?SERVER, {create_schema, Schema}).
 
--spec(update_schema(ID :: integer(), #schema{}) -> boolean()).
-update_schema(ID, #schema{id = undefined} = Schema) ->
-    gen_server:call(?SERVER, {update_schema, ID, Schema});
-update_schema(ID, #schema{id = ID} = Schema) ->
-    gen_server:call(?SERVER, {update_schema, ID, Schema}).
+-spec(get_element(SchemaId :: integer(), ElementId :: integer()) -> #element{}).
+get_element(SchemaId, ElementId) ->
+    gen_server:call(?SERVER, {get_element, SchemaId, ElementId}).
+
+-spec(update_schema(SchemaId :: integer(), #schema{}) -> boolean()).
+update_schema(SchemaId, #schema{id = undefined} = Schema) ->
+    gen_server:call(?SERVER, {update_schema, Schema#schema{id = SchemaId}});
+update_schema(SchemaId, #schema{id = SchemaId} = Schema) ->
+    gen_server:call(?SERVER, {update_schema, Schema}).
 
 -spec(delete_schema(integer()) -> true|false).
-delete_schema(ID) ->
-    gen_server:call(?SERVER, {delete_schema, ID}).
+delete_schema(SchemaId) ->
+    gen_server:call(?SERVER, {delete_schema, SchemaId}).
 
+-spec(create_element(SchemaId :: integer(), Element :: #element{}) ->
+    ElementId :: integer() | false).
+create_element(SchemaId, #element{id = undefined} = Element) ->
+    gen_server:call(?SERVER, {create_element, SchemaId, Element}).
+
+-spec(update_element(SchemaId :: integer(), ElementId :: integer(),
+        Element :: #element{}) -> true|false).
+update_element(SchemaId, ElementId, #element{id = undefined} = Element) ->
+    gen_server:call(?SERVER,
+        {update_element, SchemaId, Element#element{id = ElementId}});
+update_element(SchemaId, ElementId, #element{id = ElementId} = Element) ->
+    gen_server:call(?SERVER, {update_element, SchemaId, Element}).
+
+-spec(delete_element(SchemaId :: integer(), ElementId :: integer()) ->
+    true|false).
+delete_element(SchemaId, ElementId) ->
+    gen_server:call(?SERVER, {delete_element, SchemaId, ElementId}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -88,7 +119,7 @@ delete_schema(ID) ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     %TODO: load from disk
-    {ok, #state{next_id = 1}}.
+    {ok, #state{next_schema_id = 1, next_element_id = 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -107,16 +138,27 @@ init([]) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_call({get_schemas}, _From, #state{schemas = Schemas} = State) ->
     {reply, Schemas, State};
-handle_call({get_schema, ID}, _From, #state{schemas = Schemas} = State) ->
-    {reply, get_schema(ID, Schemas), State};
+handle_call({get_schema, Id}, _From, #state{schemas = Schemas} = State) ->
+    {reply, get_schema(Id, Schemas), State};
 handle_call({create_schema, Schema}, _From, State) ->
-    {ID, NewState} = add_schema(Schema, State),
-    {reply, ID, NewState};
-handle_call({update_schema, ID, Schema}, _From, State) ->
-    {Result, NewState} = update_schema(ID, Schema, State),
+    {Id, NewState} = add_schema(Schema, State),
+    {reply, Id, NewState};
+handle_call({update_schema, Schema}, _From, State) ->
+    {Result, NewState} = update_schema_impl(Schema, State),
     {reply, Result, NewState};
-handle_call({delete_schema, ID}, _From, State) ->
-    {Result, NewState} = delete_schema(ID, State),
+handle_call({delete_schema, Id}, _From, State) ->
+    {Result, NewState} = delete_schema(Id, State),
+    {reply, Result, NewState};
+handle_call({get_element, SchemaId, ElementId}, _From, State) ->
+    {reply, get_element(SchemaId, ElementId, State), State};
+handle_call({create_element, SchemaId, Element}, _From, State) ->
+    {Id, NewState} = add_element(SchemaId, Element, State),
+    {reply, Id, NewState};
+handle_call({update_element, SchemaId, Element}, _From, State) ->
+    {Result, NewState} = update_element_impl(SchemaId, Element, State),
+    {reply, Result, NewState};
+handle_call({delete_element, SchemaId, ElementId}, _From, State) ->
+    {Result, NewState} = delete_element(SchemaId, ElementId, State),
     {reply, Result, NewState}.
 
 
@@ -131,8 +173,8 @@ handle_call({delete_schema, ID}, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast(_Request, State) ->
-    {noreply, State}.
+handle_cast(stop, State) ->
+    {stop, normal, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -185,25 +227,64 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-add_schema(Schema, #state{next_id = ID, schemas = Schemas} = State) ->
-    NewSchema = Schema#schema{id = ID},
-    {ID, State#state{next_id = ID + 1, schemas = [NewSchema | Schemas]}}.
+add_schema(Schema, #state{next_schema_id = Id, schemas = Schemas} = State) ->
+    NewSchema = Schema#schema{id = Id},
+    {Id, State#state{next_schema_id = Id + 1, schemas = [NewSchema | Schemas]}}.
 
-get_schema(ID, Schemas) ->
-    lists:keyfind(ID, #schema.id, Schemas).
+get_schema(Id, Schemas) ->
+    lists:keyfind(Id, #schema.id, Schemas).
 
-update_schema(ID, Schema, #state{schemas = Schemas} = State) ->
-    NewSchema = Schema#schema{id = ID},
-    NewSchemas = lists:keyreplace(ID, #schema.id, Schemas, NewSchema),
+update_schema_impl(#schema{id = Id} = Schema, #state{schemas = Schemas} =
+    State) ->
+    NewSchemas = lists:keyreplace(Id, #schema.id, Schemas, Schema),
     {true, State#state{schemas=NewSchemas}}.
 
-delete_schema(ID, #state{schemas = Schemas} = State) ->
-    case lists:keydelete(ID, #schema.id, Schemas) of
+delete_schema(Id, #state{schemas = Schemas} = State) ->
+    case lists:keydelete(Id, #schema.id, Schemas) of
         Schemas -> {false, State};
         NewSchemas -> {true, State#state{schemas = NewSchemas}}
     end.
 
+get_element(SchemaId, ElementId, State) ->
+    {Ret, State} = modify_schema_elements(SchemaId, fun(Elements) ->
+        {lists:keyfind(ElementId, #element.id, Elements), Elements}
+    end, State),
+    Ret.
 
+add_element(SchemaId, Element, #state{next_element_id = Id} = State) ->
+    NewElement = Element#element{id = Id},
+    modify_schema_elements(SchemaId, fun(Elements) ->
+        {Id, [NewElement | Elements]}
+    end, State#state{next_element_id = Id + 1}).
+
+update_element_impl(SchemaId, #element{id = ElementId} = Element, State) ->
+    modify_schema_elements(SchemaId, fun(Elements) ->
+        {true, lists:keyreplace(ElementId, #element.id, Elements, Element)}
+    end, State).
+
+delete_element(SchemaId, ElementId, State) ->
+    modify_schema_elements(SchemaId, fun(Elements) ->
+        {true, lists:keydelete(ElementId, #element.id, Elements)}
+    end, State).
+
+modify_schema(SchemaId, Fun, #state{schemas = Schemas} = State) ->
+    case lists:keyfind(SchemaId, #schema.id, Schemas) of
+        false ->
+            {false, State};
+        Schema ->
+            {Ret, NewSchema} = Fun(Schema),
+            {Ret, State#state{
+                schemas = lists:keyreplace(SchemaId, #schema.id, Schemas,
+                    NewSchema)
+            }}
+    end.
+
+modify_schema_elements(SchemaId, Fun, State) ->
+    modify_schema(SchemaId, fun
+        (#schema{elements = Elements} = Schema) ->
+            {Ret, NewElements} = Fun(Elements),
+            {Ret, Schema#schema{elements = NewElements}}
+    end, State).
 
 %%%===================================================================
 %%% Tests
@@ -213,25 +294,80 @@ delete_schema(ID, #state{schemas = Schemas} = State) ->
 
 add_schema_test() ->
     NextId = 12,
-    State = #state{next_id = NextId},
+    State = #state{next_schema_id = NextId},
     Schema = #schema{name = "toto"},
     ExpectedSchema = Schema#schema{id = NextId},
-    ExpectedState = State#state{next_id = NextId + 1,
+    ExpectedState = State#state{next_schema_id = NextId + 1,
                                 schemas = [ExpectedSchema]},
     {NextId, ExpectedState} = add_schema(Schema, State).
 
+add_element_test() ->
+    NextSchemaId = 12,
+    NextElementId = 22,
+    State = #state{next_schema_id = NextSchemaId,
+        next_element_id = NextElementId},
+    Schema = #schema{name = "toto"},
+    {SchemaId, State2} = add_schema(Schema, State),
+    Element = #element{type = "test"},
+    {ElementId, State3} = add_element(SchemaId, Element, State2),
+    ElementId = NextElementId,
+    ExpectedState = State#state{schemas = [Schema#schema{id = SchemaId, elements
+    = [
+        Element#element{id = ElementId}
+    ]}], next_schema_id = SchemaId + 1, next_element_id = ElementId + 1},
+    io:format("Expected = ~w~nActual = ~w~n", [ExpectedState, State3]),
+    ExpectedState = State3.
+
+update_element_test() ->
+    NextSchemaId = 12,
+    NextElementId = 22,
+    State = #state{next_schema_id = NextSchemaId,
+        next_element_id = NextElementId},
+    Schema = #schema{name = "toto"},
+    {SchemaId, State2} = add_schema(Schema, State),
+    Element = #element{type = "test"},
+    {ElementId, State3} = add_element(SchemaId, Element, State2),
+    {true, _State4} = update_element_impl(SchemaId,
+        Element#element{id = ElementId, type = "test2"}, State3).
+
 schema_test() ->
-    {ok, _PID} = start_link(),
+    {ok, _PId} = start_link(),
     [] = get_schemas(),
     Schema = #schema{name="toto"},
-    1 = ID = create_schema(Schema),
-    NewSchema = Schema#schema{id = ID},
+    1 = Id = create_schema(Schema),
+    NewSchema = Schema#schema{id = Id},
     [NewSchema] = get_schemas(),
-    NewSchema = get_schema(ID),
+    NewSchema = get_schema(Id),
     Renamed = NewSchema#schema{name = "titi"},
-    true = update_schema(ID, Renamed),
-    Renamed = get_schema(ID),
-    false = delete_schema(ID + 1),
+    true = update_schema(Id, Renamed),
+    Renamed = get_schema(Id),
+    false = delete_schema(Id + 1),
     [Renamed] = get_schemas(),
-    true = delete_schema(ID),
-    [] = get_schemas().
+    true = delete_schema(Id),
+    [] = get_schemas(),
+    stop().
+
+element_test() ->
+    {ok, _PId} = start_link(),
+    Schema = #schema{name = "toto"},
+    SchemaId = create_schema(Schema),
+    Element = #element{type = "test"},
+
+    ElementId = create_element(SchemaId, Element),
+    Element2 = Element#element{id = ElementId},
+    Schema2 = Schema#schema{
+        id = SchemaId,
+        elements = [Element2]
+    },
+    Schema2 = get_schema(SchemaId),
+
+    Element3 = Element2#element{type = "test2"},
+    true = update_element(SchemaId, ElementId, Element3),
+    Schema3 = Schema2#schema{elements = [Element3]},
+    Schema3 = get_schema(SchemaId),
+    Element3 = get_element(SchemaId, ElementId),
+
+    delete_element(SchemaId, ElementId),
+    Schema4 = Schema3#schema{elements = []},
+    Schema4 = get_schema(SchemaId),
+    false = get_element(SchemaId, ElementId).

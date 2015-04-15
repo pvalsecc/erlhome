@@ -8,4 +8,24 @@
 %%%-------------------------------------------------------------------
 -author("pvalsecc").
 
--record(schema, {id :: integer(), name :: binary()}).
+-record(element, {
+    id :: integer(),
+    type :: binary(),
+    config :: any(),
+    x :: integer(),
+    y :: integer()
+}).
+
+-record(connection, {
+    source_id :: integer(),
+    source_output :: integer(),
+    target_id :: integer(),
+    target_input :: integer()
+}).
+
+-record(schema, {
+    id :: integer(),
+    name :: binary(),
+    elements = [] :: [#element{}],
+    connections = [] :: [#connection{}]
+}).
