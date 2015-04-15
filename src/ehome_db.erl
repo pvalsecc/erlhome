@@ -21,11 +21,7 @@
     get_connection/2]).
 
 %% gen_server callbacks
--export([init/1,
-    handle_call/3,
-    handle_cast/2,
-    handle_info/2,
-    terminate/2,
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
 -define(SERVER, ?MODULE).
@@ -98,9 +94,7 @@ create_element(SchemaId, #element{id = undefined} = Element) ->
 -spec(update_element(SchemaId :: integer(), ElementId :: integer(),
         Element :: #element{}) -> true|false).
 update_element(SchemaId, ElementId, #element{id = undefined} = Element) ->
-    gen_server:call(?SERVER,
-        {update_sub, SchemaId, ElementId, Element#element{id = ElementId},
-            fun modify_schema_elements/3});
+    update_element(SchemaId, ElementId, Element#element{id = undefined});
 update_element(SchemaId, ElementId, #element{id = ElementId} = Element) ->
     gen_server:call(?SERVER,
         {update_sub, SchemaId, ElementId, Element,
@@ -132,12 +126,10 @@ create_connection(SchemaId, #connection{id = undefined} = Connection) ->
         Connection :: #connection{}) -> true|false).
 update_connection(SchemaId, ConnectionId, #connection{id = undefined} =
     Connection) ->
-    gen_server:call(?SERVER,
-        {update_sub, SchemaId, ConnectionId,
-            Connection#connection{id = ConnectionId},
-            fun modify_schema_connections/3});
-update_connection(SchemaId, ConnectionId, #connection{id = ConnectionId} =
-    Connection) ->
+    update_connection(SchemaId, ConnectionId,
+        Connection#connection{id = ConnectionId});
+update_connection(SchemaId, ConnectionId,
+        #connection{id = ConnectionId} = Connection) ->
     gen_server:call(?SERVER,
         {update_sub, SchemaId, ConnectionId, Connection,
             fun modify_schema_connections/3}).
