@@ -17,6 +17,8 @@
     delete_schema/1]).
 -export([create_element/2, update_element/3, delete_element/2,
     get_element/2]).
+-export([create_connection/2, update_connection/3, delete_connection/2,
+    get_connection/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -33,7 +35,7 @@
 -record(state, {
     schemas = [] :: [#schema{}],
     next_schema_id :: integer(),
-    next_element_id :: integer()
+    next_sub_id :: integer()
 }).
 
 %%%===================================================================
@@ -55,6 +57,8 @@ start_link() ->
 stop() ->
     gen_server:cast(?SERVER, stop).
 
+%% Schemas
+
 -spec(get_schemas() -> [#schema{}]).
 get_schemas() ->
     gen_server:call(?SERVER, {get_schemas}).
@@ -67,10 +71,6 @@ get_schema(SchemaId) ->
 create_schema(#schema{id = undefined} = Schema) ->
     gen_server:call(?SERVER, {create_schema, Schema}).
 
--spec(get_element(SchemaId :: integer(), ElementId :: integer()) -> #element{}).
-get_element(SchemaId, ElementId) ->
-    gen_server:call(?SERVER, {get_element, SchemaId, ElementId}).
-
 -spec(update_schema(SchemaId :: integer(), #schema{}) -> boolean()).
 update_schema(SchemaId, #schema{id = undefined} = Schema) ->
     gen_server:call(?SERVER, {update_schema, Schema#schema{id = SchemaId}});
@@ -81,23 +81,73 @@ update_schema(SchemaId, #schema{id = SchemaId} = Schema) ->
 delete_schema(SchemaId) ->
     gen_server:call(?SERVER, {delete_schema, SchemaId}).
 
+%% Elements
+
+-spec(get_element(SchemaId :: integer(), ElementId :: integer()) -> #element{}).
+get_element(SchemaId, ElementId) ->
+    gen_server:call(?SERVER,
+        {get_sub, SchemaId, ElementId, fun modify_schema_elements/3}).
+
 -spec(create_element(SchemaId :: integer(), Element :: #element{}) ->
     ElementId :: integer() | false).
 create_element(SchemaId, #element{id = undefined} = Element) ->
-    gen_server:call(?SERVER, {create_element, SchemaId, Element}).
+    gen_server:call(?SERVER,
+        {create_sub, SchemaId, fun modify_schema_elements/3,
+            fun(Id) -> Element#element{id = Id} end}).
 
 -spec(update_element(SchemaId :: integer(), ElementId :: integer(),
         Element :: #element{}) -> true|false).
 update_element(SchemaId, ElementId, #element{id = undefined} = Element) ->
     gen_server:call(?SERVER,
-        {update_element, SchemaId, Element#element{id = ElementId}});
+        {update_sub, SchemaId, ElementId, Element#element{id = ElementId},
+            fun modify_schema_elements/3});
 update_element(SchemaId, ElementId, #element{id = ElementId} = Element) ->
-    gen_server:call(?SERVER, {update_element, SchemaId, Element}).
+    gen_server:call(?SERVER,
+        {update_sub, SchemaId, ElementId, Element,
+            fun modify_schema_elements/3}).
 
 -spec(delete_element(SchemaId :: integer(), ElementId :: integer()) ->
     true|false).
 delete_element(SchemaId, ElementId) ->
-    gen_server:call(?SERVER, {delete_element, SchemaId, ElementId}).
+    gen_server:call(?SERVER,
+        {delete_sub, SchemaId, ElementId, fun modify_schema_elements/3}).
+
+%% Connections
+
+-spec(get_connection(SchemaId :: integer(), ConnectionId :: integer()) ->
+    #connection{}).
+get_connection(SchemaId, ConnectionId) ->
+    gen_server:call(?SERVER,
+        {get_sub, SchemaId, ConnectionId,
+            fun modify_schema_connections/3}).
+
+-spec(create_connection(SchemaId :: integer(), Connection :: #connection{}) ->
+    ConnectionId :: integer()).
+create_connection(SchemaId, #connection{id = undefined} = Connection) ->
+    gen_server:call(?SERVER,
+        {create_sub, SchemaId, fun modify_schema_connections/3,
+            fun(Id) -> Connection#connection{id = Id} end}).
+
+-spec(update_connection(SchemaId :: integer(), ConnectionId :: integer(),
+        Connection :: #connection{}) -> true|false).
+update_connection(SchemaId, ConnectionId, #connection{id = undefined} =
+    Connection) ->
+    gen_server:call(?SERVER,
+        {update_sub, SchemaId, ConnectionId,
+            Connection#connection{id = ConnectionId},
+            fun modify_schema_connections/3});
+update_connection(SchemaId, ConnectionId, #connection{id = ConnectionId} =
+    Connection) ->
+    gen_server:call(?SERVER,
+        {update_sub, SchemaId, ConnectionId, Connection,
+            fun modify_schema_connections/3}).
+
+-spec(delete_connection(SchemaId :: integer(), ConnectionId :: integer()) ->
+    true|false).
+delete_connection(SchemaId, ConnectionId) ->
+    gen_server:call(?SERVER,
+        {delete_sub, SchemaId, ConnectionId, fun modify_schema_connections/3}).
+
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -119,7 +169,7 @@ delete_element(SchemaId, ElementId) ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     %TODO: load from disk
-    {ok, #state{next_schema_id = 1, next_element_id = 1}}.
+    {ok, #state{next_schema_id = 1, next_sub_id = 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -149,16 +199,18 @@ handle_call({update_schema, Schema}, _From, State) ->
 handle_call({delete_schema, Id}, _From, State) ->
     {Result, NewState} = delete_schema(Id, State),
     {reply, Result, NewState};
-handle_call({get_element, SchemaId, ElementId}, _From, State) ->
-    {reply, get_element(SchemaId, ElementId, State), State};
-handle_call({create_element, SchemaId, Element}, _From, State) ->
-    {Id, NewState} = add_element(SchemaId, Element, State),
+
+handle_call({get_sub, SchemaId, SubId, Modifier}, _From, State) ->
+    {reply, get_sub(SchemaId, SubId, State, Modifier), State};
+handle_call({create_sub, SchemaId, Modifier, SubFactory}, _From,
+        State) ->
+    {Id, NewState} = create_sub(SchemaId, State, Modifier, SubFactory),
     {reply, Id, NewState};
-handle_call({update_element, SchemaId, Element}, _From, State) ->
-    {Result, NewState} = update_element_impl(SchemaId, Element, State),
+handle_call({update_sub, SchemaId, SubId, Sub, Modifier}, _From, State) ->
+    {Result, NewState} = update_sub(SchemaId, SubId, Sub, State, Modifier),
     {reply, Result, NewState};
-handle_call({delete_element, SchemaId, ElementId}, _From, State) ->
-    {Result, NewState} = delete_element(SchemaId, ElementId, State),
+handle_call({delete_sub, SchemaId, SubId, Modifier}, _From, State) ->
+    {Result, NewState} = delete_sub(SchemaId, SubId, State, Modifier),
     {reply, Result, NewState}.
 
 
@@ -237,7 +289,7 @@ get_schema(Id, Schemas) ->
 update_schema_impl(#schema{id = Id} = Schema, #state{schemas = Schemas} =
     State) ->
     NewSchemas = lists:keyreplace(Id, #schema.id, Schemas, Schema),
-    {true, State#state{schemas=NewSchemas}}.
+    {true, State#state{schemas = NewSchemas}}.
 
 delete_schema(Id, #state{schemas = Schemas} = State) ->
     case lists:keydelete(Id, #schema.id, Schemas) of
@@ -245,27 +297,30 @@ delete_schema(Id, #state{schemas = Schemas} = State) ->
         NewSchemas -> {true, State#state{schemas = NewSchemas}}
     end.
 
-get_element(SchemaId, ElementId, State) ->
-    {Ret, State} = modify_schema_elements(SchemaId, fun(Elements) ->
-        {lists:keyfind(ElementId, #element.id, Elements), Elements}
+
+get_sub(SchemaId, SubId, State, Modifier) ->
+    {Ret, State} = Modifier(SchemaId, fun(Subs) ->
+        {lists:keyfind(SubId, #element.id, Subs), Subs}
     end, State),
     Ret.
 
-add_element(SchemaId, Element, #state{next_element_id = Id} = State) ->
-    NewElement = Element#element{id = Id},
-    modify_schema_elements(SchemaId, fun(Elements) ->
-        {Id, [NewElement | Elements]}
-    end, State#state{next_element_id = Id + 1}).
+create_sub(SchemaId, #state{next_sub_id = Id} = State,
+        Modifier, SubFactory) ->
+    NewSub = SubFactory(Id),
+    Modifier(SchemaId, fun(Subs) ->
+        {Id, [NewSub | Subs]}
+    end, State#state{next_sub_id = Id + 1}).
 
-update_element_impl(SchemaId, #element{id = ElementId} = Element, State) ->
-    modify_schema_elements(SchemaId, fun(Elements) ->
-        {true, lists:keyreplace(ElementId, #element.id, Elements, Element)}
+update_sub(SchemaId, SubId, Sub, State, Modifier) ->
+    Modifier(SchemaId, fun(Subs) ->
+        {true, lists:keyreplace(SubId, #element.id, Subs, Sub)}
     end, State).
 
-delete_element(SchemaId, ElementId, State) ->
-    modify_schema_elements(SchemaId, fun(Elements) ->
-        {true, lists:keydelete(ElementId, #element.id, Elements)}
+delete_sub(SchemaId, SubId, State, Modifier) ->
+    Modifier(SchemaId, fun(Subs) ->
+        {true, lists:keydelete(SubId, #element.id, Subs)}
     end, State).
+
 
 modify_schema(SchemaId, Fun, #state{schemas = Schemas} = State) ->
     case lists:keyfind(SchemaId, #schema.id, Schemas) of
@@ -280,10 +335,15 @@ modify_schema(SchemaId, Fun, #state{schemas = Schemas} = State) ->
     end.
 
 modify_schema_elements(SchemaId, Fun, State) ->
-    modify_schema(SchemaId, fun
-        (#schema{elements = Elements} = Schema) ->
-            {Ret, NewElements} = Fun(Elements),
-            {Ret, Schema#schema{elements = NewElements}}
+    modify_schema(SchemaId, fun(#schema{elements = Elements} = Schema) ->
+        {Ret, NewElements} = Fun(Elements),
+        {Ret, Schema#schema{elements = NewElements}}
+    end, State).
+
+modify_schema_connections(SchemaId, Fun, State) ->
+    modify_schema(SchemaId, fun(#schema{connections = Connections} = Schema) ->
+        {Ret, NewConnections} = Fun(Connections),
+        {Ret, Schema#schema{connections = NewConnections}}
     end, State).
 
 %%%===================================================================
@@ -298,42 +358,13 @@ add_schema_test() ->
     Schema = #schema{name = "toto"},
     ExpectedSchema = Schema#schema{id = NextId},
     ExpectedState = State#state{next_schema_id = NextId + 1,
-                                schemas = [ExpectedSchema]},
+        schemas = [ExpectedSchema]},
     {NextId, ExpectedState} = add_schema(Schema, State).
-
-add_element_test() ->
-    NextSchemaId = 12,
-    NextElementId = 22,
-    State = #state{next_schema_id = NextSchemaId,
-        next_element_id = NextElementId},
-    Schema = #schema{name = "toto"},
-    {SchemaId, State2} = add_schema(Schema, State),
-    Element = #element{type = "test"},
-    {ElementId, State3} = add_element(SchemaId, Element, State2),
-    ElementId = NextElementId,
-    ExpectedState = State#state{schemas = [Schema#schema{id = SchemaId, elements
-    = [
-        Element#element{id = ElementId}
-    ]}], next_schema_id = SchemaId + 1, next_element_id = ElementId + 1},
-    io:format("Expected = ~w~nActual = ~w~n", [ExpectedState, State3]),
-    ExpectedState = State3.
-
-update_element_test() ->
-    NextSchemaId = 12,
-    NextElementId = 22,
-    State = #state{next_schema_id = NextSchemaId,
-        next_element_id = NextElementId},
-    Schema = #schema{name = "toto"},
-    {SchemaId, State2} = add_schema(Schema, State),
-    Element = #element{type = "test"},
-    {ElementId, State3} = add_element(SchemaId, Element, State2),
-    {true, _State4} = update_element_impl(SchemaId,
-        Element#element{id = ElementId, type = "test2"}, State3).
 
 schema_test() ->
     {ok, _PId} = start_link(),
     [] = get_schemas(),
-    Schema = #schema{name="toto"},
+    Schema = #schema{name = "toto"},
     1 = Id = create_schema(Schema),
     NewSchema = Schema#schema{id = Id},
     [NewSchema] = get_schemas(),
@@ -370,4 +401,32 @@ element_test() ->
     delete_element(SchemaId, ElementId),
     Schema4 = Schema3#schema{elements = []},
     Schema4 = get_schema(SchemaId),
-    false = get_element(SchemaId, ElementId).
+    false = get_element(SchemaId, ElementId),
+    stop().
+
+connection_test() ->
+    {ok, _PId} = start_link(),
+    Schema = #schema{name = "toto"},
+    SchemaId = create_schema(Schema),
+    Connection = #connection{source_id = 1, source_output = 1, target_id = 1,
+        target_input = 1},
+
+    ConnectionId = create_connection(SchemaId, Connection),
+    Connection2 = Connection#connection{id = ConnectionId},
+    Schema2 = Schema#schema{
+        id = SchemaId,
+        connections = [Connection2]
+    },
+    Schema2 = get_schema(SchemaId),
+
+    Connection3 = Connection2#connection{target_input = 2},
+    true = update_connection(SchemaId, ConnectionId, Connection3),
+    Schema3 = Schema2#schema{connections = [Connection3]},
+    Schema3 = get_schema(SchemaId),
+    Connection3 = get_connection(SchemaId, ConnectionId),
+
+    delete_connection(SchemaId, ConnectionId),
+    Schema4 = Schema3#schema{connections = []},
+    Schema4 = get_schema(SchemaId),
+    false = get_connection(SchemaId, ConnectionId),
+    stop().

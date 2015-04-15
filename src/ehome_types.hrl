@@ -17,6 +17,7 @@
 }).
 
 -record(connection, {
+    id :: integer(),
     source_id :: integer(),
     source_output :: integer(),
     target_id :: integer(),
