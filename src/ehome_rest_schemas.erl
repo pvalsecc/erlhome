@@ -11,7 +11,7 @@
 %% API
 -export([resource_exists/2, delete_resource/2]).
 
--export([from_json/2, to_json/2]).
+-export([from_json/2, to_json/2, exists/1]).
 
 -include_lib("mixer/include/mixer.hrl").
 -mixin([ehome_rest_base]).
@@ -67,15 +67,20 @@ exists(Id) ->
     end.
 
 schemaId2Url(Id) ->
-    StrId = binary:list_to_bin(integer_to_list(Id)),
+    StrId = ehome_utils:id2str(Id),
     <<"/schemas/", StrId/bits>>.
 
-schema2json(#schema{id = Id, name = Name, elements = Elements}) ->
+schema2json(#schema{id = Id, name = Name, elements = Elements,
+                    connections = Connections}) ->
     Href = schemaId2Url(Id),
     ElementsJson = lists:map(fun(Element) ->
         ehome_rest_elements:sub2json(Id, Element)
     end, Elements),
-    #{name => Name, href => Href, elements => ElementsJson}.
+    ConnectionsJson = lists:map(fun(Connection) ->
+        ehome_rest_connections:sub2json(Id, Connection)
+    end, Connections),
+    #{name => Name, href => Href, elements => ElementsJson,
+      connections => ConnectionsJson}.
 
 json2schema(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),

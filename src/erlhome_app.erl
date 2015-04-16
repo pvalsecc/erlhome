@@ -14,7 +14,9 @@ start(_StartType, _StartArgs) ->
         {'_', [
             {"/schemas/[:id]", [{id, int}], ehome_rest_schemas, []},
             {"/schemas/:schema_id/elements/[:sub_id]",
-                [{schema_id, int}, {sub_id, int}], ehome_rest_elements, []}
+                [{schema_id, int}, {sub_id, int}], ehome_rest_elements, []},
+            {"/schemas/:schema_id/connections/[:sub_id]",
+                [{schema_id, int}, {sub_id, int}], ehome_rest_connections, []}
         ]}
     ]),
     {ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
