@@ -68,7 +68,7 @@ create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput) ->
     %TODO: why is it not 201?
     {ok, {{_Version, 204, _Reason}, Headers, Body}} =
         httpc:request(post, {
-                "http://localhost:8080" ++ UrlSchema ++ "/connections",
+            rest_utils:absolute_url(UrlSchema ++ "/connections"),
                 [], "application/json", Json},
             [{autoredirect, false}], []),
     "" = Body,

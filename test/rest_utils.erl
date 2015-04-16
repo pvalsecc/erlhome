@@ -10,28 +10,31 @@
 -author("patrick").
 
 %% API
--export([get_json/1, get_json_fail/1, delete_url/1, update_url/2]).
+-export([get_json/1, get_json_fail/1, delete_url/1, update_url/2, absolute_url/1]).
 
 get_json(Url) ->
     {ok, {{_Version, 200, _Reason}, _Headers, Body}} =
-        httpc:request(get, {"http://localhost:8080" ++ Url, []}, [], []),
+        httpc:request(get, {absolute_url(Url), []}, [], []),
     decode_json(Body).
 
 get_json_fail(Url) ->
     {ok, {{_Version, 404, _Reason}, _Headers, _Body}} =
-        httpc:request(get, {"http://localhost:8080" ++ Url, []}, [], []).
+        httpc:request(get, {absolute_url(Url), []}, [], []).
 
 delete_url(Url) ->
     {ok, {{_Version, 204, _Reason}, _Headers, Body}} =
-        httpc:request(delete, {"http://localhost:8080" ++ Url, []}, [], []),
+        httpc:request(delete, {absolute_url(Url), []}, [], []),
     "" = Body.
 
 update_url(Url, Json) ->
     {ok, {{_Version, 204, _Reason}, _Headers, Body}} =
-        httpc:request(put, {"http://localhost:8080" ++ Url, [],
+        httpc:request(put, {absolute_url(Url), [],
             "application/json", Json},
             [{autoredirect, false}], []),
     "" = Body.
+
+absolute_url(Relative) ->
+    "http://localhost:8080" ++ Relative.
 
 decode_json(Text) ->
     simplify_json(jiffy:decode(Text, [return_maps])).

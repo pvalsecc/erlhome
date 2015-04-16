@@ -70,12 +70,11 @@ update(_Config) ->
 get_schemas() ->
     rest_utils:get_json("/schemas").
 
-
 create_schema(Name) ->
     Json = create_json(Name),
     %TODO: why is it not 201?
     {ok, {{_Version, 204, _Reason}, Headers, Body}} =
-        httpc:request(post, {"http://localhost:8080/schemas", [],
+        httpc:request(post, {rest_utils:absolute_url("/schemas"), [],
             "application/json", Json},
             [{autoredirect, false}], []),
     "" = Body,

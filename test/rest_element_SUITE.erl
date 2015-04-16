@@ -68,7 +68,7 @@ create_element(UrlSchema, Type) ->
     %TODO: why is it not 201?
     {ok, {{_Version, 204, _Reason}, Headers, Body}} =
         httpc:request(post, {
-                "http://localhost:8080" ++ UrlSchema ++ "/elements",
+                rest_utils:absolute_url(UrlSchema ++ "/elements"),
                 [], "application/json", Json},
             [{autoredirect, false}], []),
     "" = Body,
