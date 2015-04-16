@@ -16,7 +16,10 @@ start(_StartType, _StartArgs) ->
             {"/schemas/:schema_id/elements/[:sub_id]",
                 [{schema_id, int}, {sub_id, int}], ehome_rest_elements, []},
             {"/schemas/:schema_id/connections/[:sub_id]",
-                [{schema_id, int}, {sub_id, int}], ehome_rest_connections, []}
+                [{schema_id, int}, {sub_id, int}], ehome_rest_connections, []},
+            {"/[...]", cowboy_static, {priv_dir, erlhome, "assets",
+                [{mimetypes, cow_mimetypes, all}]}}
+
         ]}
     ]),
     {ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
