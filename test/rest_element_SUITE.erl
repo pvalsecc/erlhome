@@ -33,29 +33,28 @@ create(Config) ->
     UrlSchema = get_schema_url(Config),
     Url1 = UrlSchema ++ "/elements/1",
     Url1 = create_element(UrlSchema, "element1"),
-    #{<<"type">> := <<"element1">>, <<"x">> := 1, <<"y">> := 1} =
-        rest_schema_SUITE:get_json(Url1),
+    #{type := "element1", x := 1, y := 1} = rest_utils:get_json(Url1),
 
     Url2 = UrlSchema ++ "/elements/2",
     Url2 = create_element(UrlSchema, "element2"),
-    #{<<"elements">> := Elements} = rest_schema_SUITE:get_json(UrlSchema),
-    [#{<<"type">> := Type1}, #{<<"type">> := Type2}] = Elements,
+    #{elements := Elements} = rest_utils:get_json(UrlSchema),
+    [#{type := Type1}, #{type := Type2}] = Elements,
     true = sets:from_list([Type1, Type2]) ==
-        sets:from_list([<<"element1">>, <<"element2">>]).
+        sets:from_list(["element1", "element2"]).
 
 delete(Config) ->
     UrlSchema = get_schema_url(Config),
     Url = create_element(UrlSchema, "element1"),
-    rest_schema_SUITE:delete_url(Url),
-    rest_schema_SUITE:get_json_fail(Url),
-    #{<<"elements">> := []} = rest_schema_SUITE:get_json(UrlSchema).
+    rest_utils:delete_url(Url),
+    rest_utils:get_json_fail(Url),
+    #{elements := []} = rest_utils:get_json(UrlSchema).
 
 update(Config) ->
     UrlSchema = get_schema_url(Config),
     Url = create_element(UrlSchema, "element1"),
-    #{<<"type">> := <<"element1">>} = rest_schema_SUITE:get_json(Url),
+    #{type := "element1"} = rest_utils:get_json(Url),
     update_element(Url, "element2"),
-    #{<<"type">> := <<"element2">>} = rest_schema_SUITE:get_json(Url).
+    #{type := "element2"} = rest_utils:get_json(Url).
 
 
 %% Utils ============================
@@ -77,7 +76,7 @@ create_element(UrlSchema, Type) ->
     Location.
 
 update_element(Url, Type) ->
-    rest_schema_SUITE:update_url(Url, create_json(Type)).
+    rest_utils:update_url(Url, create_json(Type)).
 
 create_json(Type) ->
     "{\"type\":\"" ++ Type ++ "\", \"x\":1, \"y\":1}".

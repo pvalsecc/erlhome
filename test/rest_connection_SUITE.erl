@@ -32,29 +32,29 @@ create(Config) ->
     Url1 = UrlSchema ++ "/connections/1",
     SourceId = 1, SourceOutput = 1, TargetId = 1, TargetInput = 2,
     Url1 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput),
-    #{<<"source_id">> := SourceId, <<"source_output">> := SourceOutput,
-      <<"target_id">> := TargetId, <<"target_input">> := TargetInput} =
-        rest_schema_SUITE:get_json(Url1),
+    #{source_id := SourceId, source_output := SourceOutput,
+      target_id := TargetId, target_input := TargetInput} =
+        rest_utils:get_json(Url1),
 
     Url2 = UrlSchema ++ "/connections/2",
     Url2 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, 1),
-    #{<<"connections">> := Connections} = rest_schema_SUITE:get_json(UrlSchema),
-    [#{<<"target_input">> := Input1}, #{<<"target_input">> := Input2}] = Connections,
+    #{connections := Connections} = rest_utils:get_json(UrlSchema),
+    [#{target_input := Input1}, #{target_input := Input2}] = Connections,
     true = sets:from_list([Input1, Input2]) == sets:from_list([1, 2]).
 
 delete(Config) ->
     UrlSchema = get_schema_url(Config),
     Url = create_connection(UrlSchema),
-    rest_schema_SUITE:delete_url(Url),
-    rest_schema_SUITE:get_json_fail(Url),
-    #{<<"connections">> := []} = rest_schema_SUITE:get_json(UrlSchema).
+    rest_utils:delete_url(Url),
+    rest_utils:get_json_fail(Url),
+    #{connections := []} = rest_utils:get_json(UrlSchema).
 
 update(Config) ->
     UrlSchema = get_schema_url(Config),
     Url = create_connection(UrlSchema),
-    #{<<"target_input">> := 2} = rest_schema_SUITE:get_json(Url),
+    #{target_input := 2} = rest_utils:get_json(Url),
     update_connection(Url, 1, 1, 1, 3),
-    #{<<"target_input">> := 3} = rest_schema_SUITE:get_json(Url).
+    #{target_input := 3} = rest_utils:get_json(Url).
 
 
 %% Utils ============================
@@ -79,7 +79,7 @@ create_connection(UrlSchema) ->
     create_connection(UrlSchema, 1, 1, 1, 2).
 
 update_connection(Url, SourceId, SourceOutput, TargetId, TargetInput) ->
-    rest_schema_SUITE:update_url(Url, create_json(SourceId, SourceOutput, TargetId, TargetInput)).
+    rest_utils:update_url(Url, create_json(SourceId, SourceOutput, TargetId, TargetInput)).
 
 create_json(SourceId, SourceOutput, TargetId, TargetInput) ->
     jiffy:encode(#{source_id => SourceId, source_output => SourceOutput,
