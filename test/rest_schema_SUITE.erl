@@ -82,7 +82,8 @@ get_json_fail(Url) ->
 
 delete_url(Url) ->
     {ok, {{_Version, 204, _Reason}, _Headers, Body}} =
-        httpc:request(delete, {"http://localhost:8080" ++ Url, []}, [], []).
+        httpc:request(delete, {"http://localhost:8080" ++ Url, []}, [], []),
+    "" = Body.
 
 create_schema(Name) ->
     Json = create_json(Name),
