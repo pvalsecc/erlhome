@@ -51,14 +51,42 @@ function graphId(id) {
     return "schema-element-" + id;
 }
 
+function parseId(id) {
+    return parseInt(id.match(/schema-element-(\d+)/)[1]);
+}
+
+function parsePort(port) {
+    return parseInt(port.match(/(?:in|out)(\d+)/)[1]);
+}
+
 function loadGraph(graph, schema) {
     graph.clear();
+    if(!schema || !schema.get("elements")) {
+        return;
+    }
 
     graph.elementStore = Ext.create('Ext.data.Store', {
         model: 'Element',
         proxy: {
             type: 'rest',
             url: "/schemas/" + schema.getId() + '/elements',
+            reader: {
+                type: 'json'
+            },
+            writer: {
+                type: 'json',
+                writeRecordId: false,
+                writeAllFields: true
+            }
+        },
+        autoSync: false
+    });
+
+    graph.connectionStore = Ext.create('Ext.data.Store', {
+        model: 'Connection',
+        proxy: {
+            type: 'rest',
+            url: "/schemas/" + schema.getId() + '/connections',
             reader: {
                 type: 'json'
             },
@@ -82,11 +110,14 @@ function loadGraph(graph, schema) {
     });
 
     var wires = schema.get('connections').map(function(con) {
+        var model = graph.connectionStore.add(con)[0];
+        model.commit();  //tell EXT this guy is in sync with the server
         return new joint.shapes.logic.Wire({
             source: { id: graphId(con.source_id),
                       port: 'out' + con.source_output },
             target: { id: graphId(con.target_id),
-                      port: 'in' + con.target_input }
+                      port: 'in' + con.target_input },
+            con: model
         });
     });
 
@@ -94,17 +125,49 @@ function loadGraph(graph, schema) {
 }
 
 function updateElementPosition(cell) {
-    var pos = cell.position();
     var element = cell.attributes.element;
+    if(!element) return;
+    var pos = cell.position();
     element.set('x', pos.x);
     element.set('y', pos.y);
-    console.log("Moved");
+}
+
+function updateConnection(graph, link) {
+    var target = link.attributes.target;
+    if(!target.id) return; //not yet connected
+
+    var source = link.attributes.source;
+    if(!link.attributes.con) {
+        //new link
+        link.attributes.con = graph.connectionStore.add({
+            source_id: parseId(source.id),
+            source_output: parsePort(source.port),
+            target_id: parseId(target.id),
+            target_input: parsePort(target.port)
+        })[0];
+    } else {
+        //updated link
+        var model = link.attributes.con;
+        model.set("source_id", parseId(source.id));
+        model.set("source_output", parsePort(source.port));
+        model.set("target_id", parseId(target.id));
+        model.set("target_input", parsePort(target.port));
+    }
+}
+
+function removeConnection(link) {
+    var target = link.attributes.target;
+    if(!target.id || !link.attributes.con) return; //not yet connected
+    link.attributes.con.drop();
 }
 
 function commitSchemaChanges(graph) {
-    console.log("Commit");
     if(graph.elementStore) {
+        console.log("Commit");
         graph.elementStore.sync();
+    }
+    if(graph.connectionStore) {
+        graph.connectionStore.sync();
     }
 }
 
@@ -116,7 +179,28 @@ function createSchema(name, grid) {
         width: '100%',
         height: '100%',
         model: graph,
-        gridSize: 1
+        gridSize: 5,
+        snapLinks: true,
+        defaultLink: new joint.shapes.logic.Wire,
+        validateConnection: function(vs, ms, vt, mt, e, vl) {
+            if (e === 'target') {
+                // target requires an input port to connect
+                if (!mt || !mt.getAttribute('class') || mt.getAttribute('class').indexOf('input') < 0) return false;
+
+                // check whether the port is being already used
+                var portUsed = _.find(this.model.getLinks(), function(link) {
+                    return (link.id !== vl.model.id &&
+                            link.get('target').id === vt.model.id &&
+                            link.get('target').port === mt.getAttribute('port'));
+                });
+
+                return !portUsed;
+            } else { // e === 'source'
+
+                // source requires an output port to connect
+                return ms && ms.getAttribute('class') && ms.getAttribute('class').indexOf('output') >= 0;
+            }
+        }
     });
 
     grid.getSelectionModel().on('selectionchange',
@@ -126,12 +210,20 @@ function createSchema(name, grid) {
             } else {
                 graph.clear();
                 delete graph.elementStore
+                delete graph.connectionStore
             }
         }
     );
 
+    var batches = 0;
     graph.on('change:position', updateElementPosition);
-    graph.on('batch:stop', function() {commitSchemaChanges(graph);});
+    graph.on('change:source', function(link) {updateConnection(graph, link);});
+    graph.on('change:target', function(link) {updateConnection(graph, link);});
+    graph.on('remove', removeConnection);
+    graph.on('batch:start', function() {batches++;});
+    graph.on('batch:stop', function() {
+        if(--batches == 0) commitSchemaChanges(graph);
+    });
 }
 
 Ext.define('Element', {
@@ -215,10 +307,6 @@ function createSchemasGrid() {
         columns: [
             {text: 'Schema Name', dataIndex: 'name', width: '100%', editor: 'textfield'}
         ],
-        plugins: {
-            ptype: 'rowediting',
-            //clicksToEdit: 1
-        },
         dockedItems: [{
             xtype: 'toolbar',
             items: [{
