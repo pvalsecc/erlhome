@@ -33,7 +33,8 @@ create(Config) ->
     UrlSchema = get_schema_url(Config),
     Url1 = UrlSchema ++ "/elements/1",
     Url1 = create_element(UrlSchema, "element1"),
-    #{type := "element1", x := 1, y := 1} = rest_utils:get_json(Url1),
+    Id = rest_utils:id_from_url(Url1),
+    #{id := Id, type := "element1", x := 1, y := 1} = rest_utils:get_json(Url1),
 
     Url2 = UrlSchema ++ "/elements/2",
     Url2 = create_element(UrlSchema, "element2"),
@@ -66,12 +67,11 @@ get_schema_url(Config) ->
 create_element(UrlSchema, Type) ->
     Json = create_json(Type),
     %TODO: why is it not 201?
-    {ok, {{_Version, 204, _Reason}, Headers, Body}} =
+    {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {
                 rest_utils:absolute_url(UrlSchema ++ "/elements"),
                 [], "application/json", Json},
             [{autoredirect, false}], []),
-    "" = Body,
     {_, Location} = lists:keyfind("location", 1, Headers),
     Location.
 

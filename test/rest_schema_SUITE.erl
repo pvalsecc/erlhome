@@ -44,7 +44,8 @@ create(_Config) ->
     [] = get_schemas(),
     Url1 = "/schemas/1",
     Url1 = create_schema("toto"),
-    #{name := "toto"} = rest_utils:get_json(Url1),
+    Id = rest_utils:id_from_url(Url1),
+    #{id := Id, name := "toto"} = rest_utils:get_json(Url1),
 
     Url2 = "/schemas/2",
     Url2 = create_schema("tutu"),
@@ -73,11 +74,10 @@ get_schemas() ->
 create_schema(Name) ->
     Json = create_json(Name),
     %TODO: why is it not 201?
-    {ok, {{_Version, 204, _Reason}, Headers, Body}} =
+    {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {rest_utils:absolute_url("/schemas"), [],
             "application/json", Json},
             [{autoredirect, false}], []),
-    "" = Body,
     {_, Location} = lists:keyfind("location", 1, Headers),
     Location.
 

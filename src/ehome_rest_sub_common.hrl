@@ -42,7 +42,9 @@ from_json(Req, State) ->
             SubId = create(SchemaId, Sub),
             Req3 = cowboy_req:set_resp_header(<<"location">>,
                 subId2Url(SchemaId, SubId), Req2),
-            {true, Req3, State};
+            Req4 = cowboy_req:set_resp_body(
+                jiffy:encode(sub2json(SchemaId, get_sub(SchemaId, SubId))), Req3),
+            {true, Req4, State};
         <<"PUT">> ->
             SubId = cowboy_req:binding(sub_id, Req2),
             {update(SchemaId, SubId, Sub), Req2, State}

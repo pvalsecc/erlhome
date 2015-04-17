@@ -37,9 +37,9 @@ from_json(Req, State) ->
             Id = ehome_db:create_schema(Schema),
             Req3 = cowboy_req:set_resp_header(<<"location">>,
                 schemaId2Url(Id), Req2),
-            io:format("~w~n", [cowboy_req:has_resp_header(<<"location">>,
-                Req3)]),
-            {true, Req3, State};
+            Req4 = cowboy_req:set_resp_body(
+                jiffy:encode(schema2json(ehome_db:get_schema(Id))), Req3),
+            {true, Req4, State};
         <<"PUT">> ->
             Id = cowboy_req:binding(id, Req2),
             {ehome_db:update_schema(Id, Schema), Req2, State}
@@ -79,8 +79,8 @@ schema2json(#schema{id = Id, name = Name, elements = Elements,
     ConnectionsJson = lists:map(fun(Connection) ->
         ehome_rest_connections:sub2json(Id, Connection)
     end, Connections),
-    #{name => Name, href => Href, elements => ElementsJson,
-      connections => ConnectionsJson}.
+    #{id => Id, name => Name, elements => ElementsJson,
+      connections => ConnectionsJson, href => Href}.
 
 json2schema(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),

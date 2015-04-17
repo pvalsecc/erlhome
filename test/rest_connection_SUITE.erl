@@ -32,8 +32,9 @@ create(Config) ->
     Url1 = UrlSchema ++ "/connections/1",
     SourceId = 1, SourceOutput = 1, TargetId = 1, TargetInput = 2,
     Url1 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput),
-    #{source_id := SourceId, source_output := SourceOutput,
-      target_id := TargetId, target_input := TargetInput} =
+    Id = rest_utils:id_from_url(Url1),
+    #{id := Id, source_id := SourceId, source_output := SourceOutput,
+      target_id := TargetId, target_input := TargetInput, href := Url1} =
         rest_utils:get_json(Url1),
 
     Url2 = UrlSchema ++ "/connections/2",
@@ -66,12 +67,11 @@ get_schema_url(Config) ->
 create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput) ->
     Json = create_json(SourceId, SourceOutput, TargetId, TargetInput),
     %TODO: why is it not 201?
-    {ok, {{_Version, 204, _Reason}, Headers, Body}} =
+    {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {
             rest_utils:absolute_url(UrlSchema ++ "/connections"),
                 [], "application/json", Json},
             [{autoredirect, false}], []),
-    "" = Body,
     {_, Location} = lists:keyfind("location", 1, Headers),
     Location.
 

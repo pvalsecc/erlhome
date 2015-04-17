@@ -10,7 +10,7 @@
 -author("patrick").
 
 %% API
--export([get_json/1, get_json_fail/1, delete_url/1, update_url/2, absolute_url/1]).
+-export([get_json/1, get_json_fail/1, delete_url/1, update_url/2, absolute_url/1, id_from_url/1]).
 
 get_json(Url) ->
     {ok, {{_Version, 200, _Reason}, _Headers, Body}} =
@@ -51,6 +51,10 @@ simplify_json(<<Bytes/binary>>) ->
     binary_to_list(Bytes);
 simplify_json(Json) ->
     Json.
+
+id_from_url(Url) ->
+    list_to_integer(lists:last(string:tokens(Url, "/"))).
+
 
 %%%===================================================================
 %%% Tests

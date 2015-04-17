@@ -39,7 +39,7 @@ subId2Url(SchemaId, SubId) ->
 sub2json(SchemaId, #connection{id = Id, source_id = SourceId, source_output = SourceOutput,
                                target_id = TargetId, target_input = TargetInput}) ->
     Href = subId2Url(SchemaId, Id),
-    #{source_id => SourceId, source_output => SourceOutput,
+    #{id => Id, source_id => SourceId, source_output => SourceOutput,
       target_id => TargetId, target_input => TargetInput, href => Href}.
 
 json2sub(Json) ->

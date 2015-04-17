@@ -29,8 +29,31 @@ Ext.application({
                             ],
                             plugins: {
                                 ptype: 'rowediting',
-                                clicksToEdit: 1
+                                //clicksToEdit: 1
                             },
+                            dockedItems: [{
+                                xtype: 'toolbar',
+                                items: [{
+                                    text: 'Add',
+                                    iconCls: 'icon-add',
+                                    handler: function(){
+                                        // empty record
+                                        schemasStore.insert(0, new Schema());
+                                        rowEditing.startEdit(0, 0);
+                                    }
+                                }, '-', {
+                                    itemId: 'delete',
+                                    text: 'Delete',
+                                    iconCls: 'icon-delete',
+                                    disabled: true,
+                                    handler: function(){
+                                        var selection = grid.getView().getSelectionModel().getSelection()[0];
+                                        if (selection) {
+                                            store.remove(selection);
+                                        }
+                                    }
+                                }]
+                            }]
                         },
                         {
                             region: 'center',
@@ -85,12 +108,11 @@ function createSchema(name) {
 
 Ext.define('Schema', {
     extend: 'Ext.data.Model',
-    idProperty: 'id',
-    clientIdProperty: 'id',
     fields: [
+        'id',
         'name',
-        'href',
-        {name: 'id', calculate: function(data) {return data.href.split('/').pop();}}],
+        'href'
+        ],
     validators: {
         name: 'presence'
     }
@@ -103,14 +125,12 @@ function createSchemasStore() {
         proxy: {
             type: 'rest',
             url: 'schemas',
-            buildUrl: function(request) {
-                return request.href;  //TODO: doesn't work!!!!
-            },
             reader: {
                 type: 'json'
             },
             writer: {
-                type: 'json'
+                type: 'json',
+                writeRecordId: false
             }
         },
 

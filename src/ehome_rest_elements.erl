@@ -38,7 +38,7 @@ subId2Url(SchemaId, SubId) ->
 
 sub2json(SchemaId, #element{id = Id, type = Type, x = X, y = Y}) ->
     Href = subId2Url(SchemaId, Id),
-    #{type => Type, x => X, y => Y, href => Href}.
+    #{id =>Id, type => Type, x => X, y => Y, href => Href}.
 
 json2sub(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),
