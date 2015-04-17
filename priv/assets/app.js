@@ -4,66 +4,37 @@ Ext.application({
     name   : 'MyApp',
 
     launch : function() {
-       var schemasStore = createSchemasStore();
-
-       Ext.create('Ext.tab.Panel', {
+       Ext.create('Ext.container.Viewport', {
             renderTo     : Ext.getBody(),
             width        : '100%',
             height       : '100%',
-            bodyPadding  : 5,
-            title        : 'Erlhome',
-            items        : [
-                {
-                    title : 'Schemas',
-                    layout: 'border',
-                    items : [
-                        {
-                            region:'west',
-                            split: true,
-                            width: 200,
-                            height: '100%',
-                            xtype: 'gridpanel',
-                            store: schemasStore,
-                            columns: [
-                                {text: 'Schema Name', dataIndex: 'name', width: '100%', editor: 'textfield'}
-                            ],
-                            plugins: {
-                                ptype: 'rowediting',
-                                //clicksToEdit: 1
+            layout: 'fit',
+            items: [{
+                xtype : 'tabpanel',
+                bodyPadding  : 5,
+                title        : 'Erlhome',
+                items        : [
+                    {
+                        title : 'Schemas',
+                        layout: 'border',
+                        items : [
+                            {
+                                region:'west',
+                                split: true,
+                                width: 200,
+                                height: '100%',
+                                items: [createSchemasGrid()]
                             },
-                            dockedItems: [{
-                                xtype: 'toolbar',
-                                items: [{
-                                    text: 'Add',
-                                    iconCls: 'icon-add',
-                                    handler: function(){
-                                        // empty record
-                                        schemasStore.insert(0, new Schema());
-                                        rowEditing.startEdit(0, 0);
-                                    }
-                                }, '-', {
-                                    itemId: 'delete',
-                                    text: 'Delete',
-                                    iconCls: 'icon-delete',
-                                    disabled: true,
-                                    handler: function(){
-                                        var selection = grid.getView().getSelectionModel().getSelection()[0];
-                                        if (selection) {
-                                            store.remove(selection);
-                                        }
-                                    }
-                                }]
-                            }]
-                        },
-                        {
-                            region: 'center',
-                            html : '<div id="paper" class="paper" style="width: 100%; height: 100%"/>'
-                        }
-                    ]
-                }
-            ]
-
+                            {
+                                region: 'center',
+                                html : '<div id="paper" class="paper" style="width: 100%; height: 100%"/>'
+                            }
+                        ]
+                    }
+                ]
+            }]
         });
+
         createSchema('#paper');
     }
 });
@@ -139,4 +110,62 @@ function createSchemasStore() {
         autoSync: true
     });
     return store;
+}
+
+function createSchemasGrid() {
+    var schemasStore = createSchemasStore();
+
+    var rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
+        listeners: {
+            cancelEdit: function(rowEditing, context) {
+                // Canceling editing of a locally added, unsaved record: remove it
+                if (context.record.phantom) {
+                    store.remove(context.record);
+                }
+            }
+        }
+    });
+
+    var grid = Ext.create('Ext.grid.Panel', {
+        width: '100%',
+        height: '100%',
+        plugins: [rowEditing],
+        store: schemasStore,
+        columns: [
+            {text: 'Schema Name', dataIndex: 'name', width: '100%', editor: 'textfield'}
+        ],
+        plugins: {
+            ptype: 'rowediting',
+            //clicksToEdit: 1
+        },
+        dockedItems: [{
+            xtype: 'toolbar',
+            items: [{
+                text: 'Add',
+                iconCls: 'icon-add',
+                handler: function(){
+                    // empty record
+                    schemasStore.insert(0, new Schema());
+                    rowEditing.startEdit(0, 0);
+                }
+            }, '-', {
+                itemId: 'delete',
+                text: 'Delete',
+                iconCls: 'icon-delete',
+                disabled: true,
+                handler: function(){
+                    var selection = grid.getView().getSelectionModel().getSelection()[0];
+                    if (selection) {
+                        schemasStore.remove(selection);
+                    }
+                }
+            }]
+        }]
+    });
+
+    grid.getSelectionModel().on('selectionchange', function(selModel, selections){
+        grid.down('#delete').setDisabled(selections.length === 0);
+    });
+
+    return grid;
 }
