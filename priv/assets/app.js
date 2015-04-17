@@ -4,6 +4,8 @@ Ext.application({
     name   : 'MyApp',
 
     launch : function() {
+       var schemaGrid = createSchemasGrid();
+
        Ext.create('Ext.container.Viewport', {
             renderTo     : Ext.getBody(),
             width        : '100%',
@@ -23,7 +25,7 @@ Ext.application({
                                 split: true,
                                 width: 200,
                                 height: '100%',
-                                items: [createSchemasGrid()]
+                                items: [schemaGrid]
                             },
                             {
                                 region: 'center',
@@ -35,11 +37,78 @@ Ext.application({
             }]
         });
 
-        createSchema('#paper');
+        createSchema('#paper', schemaGrid);
     }
 });
 
-function createSchema(name) {
+var TYPE2SHAPE = {
+    or: joint.shapes.logic.Or,
+    and: joint.shapes.logic.And,
+    xor: joint.shapes.logic.Xor
+};
+
+function graphId(id) {
+    return "schema-element-" + id;
+}
+
+function loadGraph(graph, schema) {
+    graph.clear();
+
+    graph.elementStore = Ext.create('Ext.data.Store', {
+        model: 'Element',
+        proxy: {
+            type: 'rest',
+            url: "/schemas/" + schema.getId() + '/elements',
+            reader: {
+                type: 'json'
+            },
+            writer: {
+                type: 'json',
+                writeRecordId: false,
+                writeAllFields: true
+            }
+        },
+        autoSync: false
+    });
+
+    var nodes = schema.get('elements').map(function(element) {
+        var model = graph.elementStore.add(element)[0];
+        model.commit();  //tell EXT this guy is in sync with the server
+        return new TYPE2SHAPE[element.type]({
+            id: graphId(element.id),
+            position: {x: element.x, y: element.y},
+            element: model
+        });
+    });
+
+    var wires = schema.get('connections').map(function(con) {
+        return new joint.shapes.logic.Wire({
+            source: { id: graphId(con.source_id),
+                      port: 'out' + con.source_output },
+            target: { id: graphId(con.target_id),
+                      port: 'in' + con.target_input }
+        });
+    });
+
+    graph.resetCells(nodes.concat(wires));
+}
+
+function updateElementPosition(cell) {
+    var pos = cell.position();
+    var element = cell.attributes.element;
+    element.set('x', pos.x);
+    element.set('y', pos.y);
+    console.log("Moved");
+}
+
+function commitSchemaChanges(graph) {
+    console.log("Commit");
+    if(graph.elementStore) {
+        graph.elementStore.sync();
+    }
+}
+
+function createSchema(name, grid) {
     var graph = new joint.dia.Graph;
 
     var paper = new joint.dia.Paper({
@@ -50,39 +119,50 @@ function createSchema(name) {
         gridSize: 1
     });
 
-    var gates = {
-        repeater: new joint.shapes.logic.Repeater({ position: { x: 350, y: 50 }}),
-        or: new joint.shapes.logic.Or({ position: { x: 550, y: 50 }}),
-        and: new joint.shapes.logic.And({ position: { x: 550, y: 150 }}),
-        not: new joint.shapes.logic.Not({ position: { x: 120, y: 200 }}),
-        nand: new joint.shapes.logic.Nand({ position: { x: 550, y: 250 }}),
-        nor: new joint.shapes.logic.Nor({ position: { x: 250, y: 130 }}),
-        xor: new joint.shapes.logic.Xor({ position: { x: 550, y: 200 }}),
-        xnor: new joint.shapes.logic.Xnor({ position: { x: 550, y: 100 }}),
-        input: new joint.shapes.logic.Input({ position: { x: 10, y: 100 }}),
-        output: new joint.shapes.logic.Output({ position: { x: 400, y: 300 }})
-    }
-
-    var wires = [
-        { source: { id: gates.input.id, port: 'out' }, target: { id: gates.not.id, port: 'in' }},
-        { source: { id: gates.not.id, port: 'out' }, target: { id: gates.nor.id, port: 'in1' }},
-        { source: { id: gates.nor.id, port: 'out' }, target: { id: gates.repeater.id, port: 'in' }},
-        { source: { id: gates.nor.id, port: 'out' }, target: { id: gates.output.id, port: 'in' }},
-        { source: { id: gates.repeater.id, port: 'out' }, target: { id: gates.nor.id, port: 'in2'},
-          vertices: [{ x: 300, y: 220 }]
+    grid.getSelectionModel().on('selectionchange',
+        function(selModel, selections)  {
+            if(selections.length > 0) {
+                loadGraph(graph, selections[0])
+            } else {
+                graph.clear();
+                delete graph.elementStore
+            }
         }
-    ];
+    );
 
-    graph.addCells(_.toArray(gates));
-    _.each(wires, function(attributes) { graph.addCell(new joint.shapes.logic.Wire(attributes)) });
+    graph.on('change:position', updateElementPosition);
+    graph.on('batch:stop', function() {commitSchemaChanges(graph);});
 }
+
+Ext.define('Element', {
+    extend: 'Ext.data.Model',
+    fields: [
+        'id',
+        'type',
+        {name: 'x', type: 'int'},
+        {name: 'y', type: 'int'}
+    ]
+});
+
+Ext.define('Connection', {
+    extend: 'Ext.data.Model',
+    fields: [
+        'id',
+        'source_id',
+        'source_output',
+        'target_id',
+        'target_input'
+    ]
+});
 
 Ext.define('Schema', {
     extend: 'Ext.data.Model',
     fields: [
         'id',
         'name',
-        'href'
+        'href',
+        'connections',
+        'elements'
         ],
     validators: {
         name: 'presence'
@@ -101,7 +181,8 @@ function createSchemasStore() {
             },
             writer: {
                 type: 'json',
-                writeRecordId: false
+                writeRecordId: false,
+                writeAllFields: true
             }
         },
 

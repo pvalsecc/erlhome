@@ -74,7 +74,8 @@ joint.shapes.logic.Input = joint.shapes.logic.IO.extend({
         type: 'logic.Input',
         attrs: {
             '.wire': { 'ref-dx': 0, d: 'M 0 0 L 23 0' },
-            circle: { ref: '.body', 'ref-dx': 30, 'ref-y': 0.5, magnet: true, 'class': 'output', port: 'out' },
+            circle: { ref: '.body', 'ref-dx': 30, 'ref-y': 0.5, magnet: true,
+             'class': 'output', port: 'out1' },
             text: { text: 'input' }
         }
 
@@ -88,7 +89,8 @@ joint.shapes.logic.Output = joint.shapes.logic.IO.extend({
         type: 'logic.Output',
         attrs: {
             '.wire': { 'ref-x': 0, d: 'M 0 0 L -23 0' },
-            circle: { ref: '.body', 'ref-x': -30, 'ref-y': 0.5, magnet: 'passive', 'class': 'input', port: 'in' },
+            circle: { ref: '.body', 'ref-x': -30, 'ref-y': 0.5, magnet:
+            'passive', 'class': 'input', port: 'in1' },
             text: { text: 'output' }
         }
 
@@ -105,8 +107,10 @@ joint.shapes.logic.Gate11 = joint.shapes.logic.Gate.extend({
 
         type: 'logic.Gate11',
         attrs: {
-            '.input': { ref: '.body', 'ref-x': -2, 'ref-y': 0.5, magnet: 'passive', port: 'in' },
-            '.output': { ref: '.body', 'ref-dx': 2, 'ref-y': 0.5, magnet: true, port: 'out' }
+            '.input': { ref: '.body', 'ref-x': -2, 'ref-y': 0.5, magnet:
+            'passive', port: 'in1' },
+            '.output': { ref: '.body', 'ref-dx': 2, 'ref-y': 0.5, magnet:
+            true, port: 'out1' }
         }
 
     }, joint.shapes.logic.Gate.prototype.defaults)
@@ -122,7 +126,8 @@ joint.shapes.logic.Gate21 = joint.shapes.logic.Gate.extend({
         attrs: {
             '.input1': { ref: '.body', 'ref-x': -2, 'ref-y': 0.3, magnet: 'passive', port: 'in1' },
             '.input2': { ref: '.body', 'ref-x': -2, 'ref-y': 0.7, magnet: 'passive', port: 'in2' },
-            '.output': { ref: '.body', 'ref-dx': 2, 'ref-y': 0.5, magnet: true, port: 'out' }
+            '.output': { ref: '.body', 'ref-dx': 2, 'ref-y': 0.5, magnet:
+            true, port: 'out1' }
         }
 
     }, joint.shapes.logic.Gate.prototype.defaults),
