@@ -39,7 +39,7 @@ Ext.application({
 Ext.define('Element', {
     extend: 'Ext.data.Model',
     fields: [
-        'id',
+        {name: 'id', type: 'int'},
         'type',
         {name: 'x', type: 'int'},
         {name: 'y', type: 'int'}
@@ -49,23 +49,24 @@ Ext.define('Element', {
 Ext.define('Connection', {
     extend: 'Ext.data.Model',
     fields: [
-        'id',
-        'source_id',
-        'source_output',
-        'target_id',
-        'target_input'
+        {name: 'id', type: 'int'},
+        {name: 'source_id', type: 'int'},
+        {name: 'source_output', type: 'int'},
+        {name: 'target_id', type: 'int'},
+        {name: 'target_input', type: 'int'},
+        'vertices'
     ]
 });
 
 Ext.define('Schema', {
     extend: 'Ext.data.Model',
     fields: [
-        'id',
+        {name: 'id', type: 'int'},
         'name',
         'href',
-        'connections',
-        'elements'
-        ],
+        'connections', //{name: 'connections', defaultValue: []},
+        'elements', //{name: 'elements', defaultValue: []}
+    ],
     validators: {
         name: 'presence'
     }

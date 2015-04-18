@@ -83,4 +83,4 @@ update_connection(Url, SourceId, SourceOutput, TargetId, TargetInput) ->
 
 create_json(SourceId, SourceOutput, TargetId, TargetInput) ->
     jiffy:encode(#{source_id => SourceId, source_output => SourceOutput,
-                   target_id => TargetId, target_input => TargetInput}).
+                   target_id => TargetId, target_input => TargetInput, vertices => []}).

@@ -36,15 +36,25 @@ subId2Url(SchemaId, SubId) ->
     StrSubId = ehome_utils:id2str(SubId),
     <<"/schemas/", StrSchemaId/bytes, "/connections/", StrSubId/bytes>>.
 
+vertices2json(Vertices) ->
+    lists:map(fun(#vertice{x = X, y = Y}) -> #{x => X, y => Y} end, Vertices).
+
 sub2json(SchemaId, #connection{id = Id, source_id = SourceId, source_output = SourceOutput,
-                               target_id = TargetId, target_input = TargetInput}) ->
+                               target_id = TargetId, target_input = TargetInput, vertices = Vertices}) ->
     Href = subId2Url(SchemaId, Id),
     #{id => Id, source_id => SourceId, source_output => SourceOutput,
-      target_id => TargetId, target_input => TargetInput, href => Href}.
+      target_id => TargetId, target_input => TargetInput,
+      vertices => vertices2json(Vertices),
+      href => Href}.
+
+json2vertices(Json) ->
+    lists:map(fun(#{<<"x">> := X, <<"y">> := Y}) -> #vertice{x = X, y = Y} end, Json).
 
 json2sub(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),
     #{<<"source_id">> := SourceId, <<"source_output">> := SourceOutput,
-      <<"target_id">> := TargetId, <<"target_input">> := TargetInput } = Decoded,
+      <<"target_id">> := TargetId, <<"target_input">> := TargetInput,
+      <<"vertices">> := Vertices} = Decoded,
     #connection{source_id = SourceId, source_output = SourceOutput,
-                target_id = TargetId, target_input = TargetInput}.
+                target_id = TargetId, target_input = TargetInput,
+                vertices = json2vertices(Vertices)}.

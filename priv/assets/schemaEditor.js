@@ -26,10 +26,12 @@ function createCell(model) {
 
 function loadGraph(graph, schema) {
     graph.clear();
-    if(!schema || !schema.get("elements")) {
+
+    if(!schema) {
         return;
     }
 
+    //TODO: when creating a new schema, it's ID is unknown yet when we arrive here
     graph.elementStore = Ext.create('Ext.data.Store', {
         model: 'Element',
         proxy: {
@@ -64,13 +66,16 @@ function loadGraph(graph, schema) {
         autoSync: false
     });
 
-    var nodes = schema.get('elements').map(function(element) {
+    var elements = schema.get('elements') || [];
+
+    var nodes = elements.map(function(element) {
         var model = graph.elementStore.add(element)[0];
         model.commit();  //tell EXT this guy is in sync with the server
         return createCell(model);
     });
 
-    var wires = schema.get('connections').map(function(con) {
+    var connections = schema.get('connections') || [];
+    var wires = connections.map(function(con) {
         var model = graph.connectionStore.add(con)[0];
         model.commit();  //tell EXT this guy is in sync with the server
         return new joint.shapes.logic.Wire({
@@ -78,6 +83,7 @@ function loadGraph(graph, schema) {
                       port: 'out' + con.source_output },
             target: { id: graphId(con.target_id),
                       port: 'in' + con.target_input },
+            vertices: con.vertices || [],
             con: model
         });
     });
@@ -98,13 +104,15 @@ function updateConnection(graph, link) {
     if(!target.id) return; //not yet connected
 
     var source = link.attributes.source;
+    var vertices = link.attributes.vertices || [];
     if(!link.attributes.con) {
         //new link
         link.attributes.con = graph.connectionStore.add({
             source_id: parseId(source.id),
             source_output: parsePort(source.port),
             target_id: parseId(target.id),
-            target_input: parsePort(target.port)
+            target_input: parsePort(target.port),
+            vertices: vertices
         })[0];
     } else {
         //updated link
@@ -113,6 +121,7 @@ function updateConnection(graph, link) {
         model.set("source_output", parsePort(source.port));
         model.set("target_id", parseId(target.id));
         model.set("target_input", parsePort(target.port));
+        model.set("vertices", vertices);
     }
 }
 
@@ -183,6 +192,7 @@ function createSchema(name, grid) {
     graph.on('change:position', updateElementPosition);
     graph.on('change:source', function(link) {updateConnection(graph, link);});
     graph.on('change:target', function(link) {updateConnection(graph, link);});
+    graph.on('change:vertices', function(link) {updateConnection(graph, link);});
     graph.on('remove', removeConnection);
     graph.on('batch:start', function() {batches++;});
     graph.on('batch:stop', function() {
