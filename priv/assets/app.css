@@ -5,3 +5,7 @@
 .icon-delete {
     background-image: url(images/delete.png) !important;
 }
+
+.toolbar {
+    background:  #3892d3;
+}
