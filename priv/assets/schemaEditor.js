@@ -167,8 +167,12 @@ function createSchemaToolbar(graph) {
 }
 
 function saveSchema(schema, elementStore, connectionStore) {
-    schema.data.elements = elementStore.data.items.map(function(x) {return x.data;});
-    schema.data.connections = connectionStore.data.items.map(function(x) {return x.data;});
+    if(elementStore) {
+        schema.data.elements = elementStore.data.items.map(function(x) {return x.data;});
+    }
+    if(connectionStore) {
+        schema.data.connections = connectionStore.data.items.map(function(x) {return x.data;});
+    }
 }
 
 function createSchema(name, grid) {
@@ -181,14 +185,14 @@ function createSchema(name, grid) {
     grid.getSelectionModel().on('selectionchange',
         function(selModel, selections)  {
             if(prevSchema) saveSchema(prevSchema, graph.elementStore, graph.connectionStore);
-            delete graph.elementStore
-            delete graph.connectionStore
+            delete graph.elementStore;
+            delete graph.connectionStore;
             graph.clear();
 
             if(selections.length > 0 && !selections[0].phantom) {
                 prevSchema = selections[0];
                 toolbar.enable();
-                loadGraph(graph, selections[0])
+                loadGraph(graph, selections[0]);
             } else {
                 toolbar.disable();
             }

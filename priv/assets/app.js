@@ -110,8 +110,12 @@ function createSchemasGrid() {
 
             edit: function(editor, context) {
                 if(context.record.phantom) {
-                    //context.grid.getSelectionModel().deselectAll();
-                    //context.grid.getView().refresh();
+                    new Ext.util.DelayedTask(function() {
+                        //deselect to force the user to reselect. Needed to be done later
+                        //to work around a bug in EXT.
+                        context.grid.getSelectionModel().deselectAll();
+                        context.grid.getView().refresh();
+                    }).delay(10);
                 }
             }
         }
