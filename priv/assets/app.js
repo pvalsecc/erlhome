@@ -101,10 +101,17 @@ function createSchemasGrid() {
 
     var rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
         listeners: {
-            cancelEdit: function(rowEditing, context) {
+            cancelEdit: function(editor, context) {
                 // Canceling editing of a locally added, unsaved record: remove it
                 if (context.record.phantom) {
-                    store.remove(context.record);
+                    schemasStore.remove(context.record);
+                }
+            },
+
+            edit: function(editor, context) {
+                if(context.record.phantom) {
+                    //context.grid.getSelectionModel().deselectAll();
+                    //context.grid.getView().refresh();
                 }
             }
         }
@@ -123,7 +130,7 @@ function createSchemasGrid() {
             items: [{
                 text: 'Add',
                 iconCls: 'icon-add',
-                handler: function(){
+                handler: function() {
                     // empty record
                     schemasStore.insert(0, new Schema());
                     rowEditing.startEdit(0, 0);
@@ -133,8 +140,8 @@ function createSchemasGrid() {
                 text: 'Delete',
                 iconCls: 'icon-delete',
                 disabled: true,
-                handler: function(){
-                    var selection = grid.getView().getSelectionModel().getSelection()[0];
+                handler: function() {
+                    var selection = grid.getSelectionModel().getSelection()[0];
                     if (selection) {
                         schemasStore.remove(selection);
                     }

@@ -25,13 +25,10 @@ function createCell(model) {
 }
 
 function loadGraph(graph, schema) {
-    graph.clear();
-
     if(!schema) {
         return;
     }
 
-    //TODO: when creating a new schema, it's ID is unknown yet when we arrive here
     graph.elementStore = Ext.create('Ext.data.Store', {
         model: 'Element',
         proxy: {
@@ -125,9 +122,10 @@ function updateConnection(graph, link) {
     }
 }
 
-function removeConnection(link) {
+function removeConnection(graph, link) {
+    if(!graph.connectionStore) return;   //don't remove when switching schema
     var target = link.attributes.target;
-    if(!target.id || !link.attributes.con) return; //not yet connected
+    if(!target || !target.id || !link.attributes.con) return; //not yet connected
     link.attributes.con.drop();
 }
 
@@ -168,22 +166,31 @@ function createSchemaToolbar(graph) {
     });
 }
 
+function saveSchema(schema, elementStore, connectionStore) {
+    schema.data.elements = elementStore.data.items.map(function(x) {return x.data;});
+    schema.data.connections = connectionStore.data.items.map(function(x) {return x.data;});
+}
+
 function createSchema(name, grid) {
     var graph = new joint.dia.Graph;
 
     var toolbar = createSchemaToolbar(graph);
     toolbar.disable();
 
+    var prevSchema = undefined;
     grid.getSelectionModel().on('selectionchange',
         function(selModel, selections)  {
-            if(selections.length > 0) {
+            if(prevSchema) saveSchema(prevSchema, graph.elementStore, graph.connectionStore);
+            delete graph.elementStore
+            delete graph.connectionStore
+            graph.clear();
+
+            if(selections.length > 0 && !selections[0].phantom) {
+                prevSchema = selections[0];
                 toolbar.enable();
                 loadGraph(graph, selections[0])
             } else {
                 toolbar.disable();
-                graph.clear();
-                delete graph.elementStore
-                delete graph.connectionStore
             }
         }
     );
@@ -193,7 +200,7 @@ function createSchema(name, grid) {
     graph.on('change:source', function(link) {updateConnection(graph, link);});
     graph.on('change:target', function(link) {updateConnection(graph, link);});
     graph.on('change:vertices', function(link) {updateConnection(graph, link);});
-    graph.on('remove', removeConnection);
+    graph.on('remove', function(link) {removeConnection(graph, link);});
     graph.on('batch:start', function() {batches++;});
     graph.on('batch:stop', function() {
         if(--batches == 0) commitSchemaChanges(graph);
