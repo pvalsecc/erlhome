@@ -14,7 +14,7 @@
 %% API
 -export([start_link/1]).
 
--export([init/1, new_inputs/3]).
+-export([init/1, new_inputs/3, iterate_status/2]).
 
 -record(state, {
     status = false :: boolean(),
@@ -31,3 +31,6 @@ init(Id) ->
 new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
     io:format("Relay ~p: ~p~n", [Id, Input]),
     State#state{status = Input}.
+
+iterate_status(Callback, #state{id = Id, status = Status}) ->
+    Callback(relay, Id, Status).

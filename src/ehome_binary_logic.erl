@@ -12,7 +12,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([and_start_link/1, or_start_link/1, xor_start_link/1]).
+-export([and_start_link/1, or_start_link/1, xor_start_link/1, iterate_status/2]).
 
 %% ehome_element callbacks
 -export([init/1, new_inputs/3]).
@@ -45,6 +45,8 @@ init([Fun]) ->
 new_inputs([A, B], _OldOutputs, #state{function = Fun} = State) ->
     {new_outputs, [Fun(A, B)], State}.
 
+iterate_status(_Callback, _Inner) ->
+    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

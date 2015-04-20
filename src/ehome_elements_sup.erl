@@ -102,6 +102,9 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({handle_event, Event}, State) ->
     {noreply, handle_event_impl(Event, State)};
+handle_cast({iterate_status, Callback}, State) ->
+    iterate_status(Callback, State),
+    {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
 
@@ -234,3 +237,12 @@ handle_event_impl(
 
 handle_event_impl(_Event, State) ->
     State.
+
+
+iterate_status(Callback, #state{elements = Elements}) ->
+    iterate_status(Callback, Elements);
+iterate_status(_Callback, []) ->
+    ok;
+iterate_status(Callback, [#element_mapping{pid = Pid} | Rest]) ->
+    ehome_element:iterate_status(Pid, Callback),
+    iterate_status(Callback, Rest).

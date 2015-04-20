@@ -20,9 +20,13 @@
     NewInner :: any() |
     {NewOutputs :: list(boolean), NewInner :: any()}.
 
+-callback iterate_status(
+    Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok),
+    Inner :: any()) -> ok.
+
 %% API
 -export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
-    get_inputs/1, get_outputs/1, stop/1]).
+    get_inputs/1, get_outputs/1, stop/1, iterate_status/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -83,6 +87,11 @@ get_inputs(Gate) ->
 
 stop(Gate) ->
     gen_server:cast(Gate, stop).
+
+-spec(iterate_status(Gate :: pid(),
+    Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok)) -> ok).
+iterate_status(Gate, Callback) ->
+    gen_server:cast(Gate, {iterate_status, Callback}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -173,7 +182,13 @@ handle_cast({disconnect, Output, Id},
     {noreply, State#state{output_connections = NewConnections}};
 
 handle_cast(stop, State) ->
-    {stop, normal, State}.
+    {stop, normal, State};
+
+handle_cast({iterate_status, Callback},
+            #state{implementation = Impl, inner_state = Inner} = State) ->
+    Impl:iterate_status(Callback, Inner),
+    %TODO: connections
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% @private
