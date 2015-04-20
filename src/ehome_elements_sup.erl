@@ -222,5 +222,11 @@ handle_event_impl(
     end,
     State;
 
+handle_event_impl(
+        {update, #connection{} = NewConnection, #connection{} = OldConnection},
+        State) ->
+    NewState = handle_event_impl({delete, OldConnection}, State),
+    handle_event_impl({create, NewConnection}, NewState);
+
 handle_event_impl(_Event, State) ->
     State.

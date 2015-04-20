@@ -43,7 +43,7 @@ elements(_Config) ->
 
     UpdatedElement = ExpectedElement#element{x = 33},
     true = ehome_db:update_element(SchemaId, ElementId, UpdatedElement),
-    ExpectedEvents2 = [{update, UpdatedElement}],
+    ExpectedEvents2 = [{update, UpdatedElement, ExpectedElement}],
     ExpectedEvents2 = event_recorder:get_events(change_notif),
 
     true = ehome_db:delete_element(SchemaId, ElementId),

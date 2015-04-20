@@ -306,7 +306,8 @@ create_sub(SchemaId, #state{next_sub_id = Id} = State,
 
 update_sub(SchemaId, SubId, Sub, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
-        gen_event:notify(change_notif, {update, Sub}),
+        PrevSub = lists:keyfind(SubId, #element.id, Subs),
+        gen_event:notify(change_notif, {update, Sub, PrevSub}),
         {true, lists:keyreplace(SubId, #element.id, Subs, Sub)}
     end, State).
 
