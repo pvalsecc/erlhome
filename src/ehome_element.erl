@@ -21,7 +21,7 @@
     {NewOutputs :: list(boolean), NewInner :: any()}.
 
 %% API
--export([start_link/5, set_input/3, new_outputs/2, connect/4, disconnect/4,
+-export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
     get_inputs/1, get_outputs/1, stop/1]).
 
 %% gen_server callbacks
@@ -33,11 +33,11 @@
     code_change/3]).
 
 -record(state, {
-    name :: string(),
+    id :: integer(),
     implementation :: atom(),
     input_values :: list(boolean()),
     output_values :: list(boolean()),
-    output_connections :: list(list({pid(), integer()})),
+    output_connections :: list(list({Id :: integer(), Target :: pid(), Input :: integer()})),
     inner_state :: any()
 }).
 
@@ -51,11 +51,11 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(Name :: term(), Module :: atom(),
+-spec(start_link(Id :: integer(), Module :: atom(),
         NbInputs :: integer(), NbOutputs :: integer(), Params :: list()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Name, Module, NbInputs, NbOutputs, Params) ->
-    gen_server:start_link(?MODULE, [Name, Module, NbInputs, NbOutputs, Params],
+start_link(Id, Module, NbInputs, NbOutputs, Params) ->
+    gen_server:start_link(?MODULE, [Id, Module, NbInputs, NbOutputs, Params],
         []).
 
 -spec(set_input(Gate :: pid(), Index :: pos_integer(), Value :: boolean()) -> ok).
@@ -67,14 +67,13 @@ new_outputs(Gate, NewOutputs) ->
     gen_server:cast(Gate, {new_outputs, NewOutputs}).
 
 -spec(connect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
-        Input :: pos_integer()) -> ok).
-connect(Gate, Output, Destination, Input) ->
-    gen_server:cast(Gate, {connect, Output, Destination, Input}).
+        Input :: pos_integer(), Id :: integer()) -> ok).
+connect(Gate, Output, Destination, Input, Id) ->
+    gen_server:cast(Gate, {connect, Output, Destination, Input, Id}).
 
--spec(disconnect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
-        Input :: pos_integer()) -> ok).
-disconnect(Gate, Output, Destination, Input) ->
-    gen_server:cast(Gate, {disconnect, Output, Destination, Input}).
+-spec(disconnect(Gate :: pid(), Output :: pos_integer(), Id :: integer()) -> ok).
+disconnect(Gate, Output, Id) ->
+    gen_server:cast(Gate, {disconnect, Output, Id}).
 
 get_outputs(Gate) ->
     gen_server:call(Gate, get_outputs).
@@ -103,8 +102,8 @@ stop(Gate) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([Name, Module, NbInputs, NbOutputs, Params]) ->
-    {ok, #state{name = Name,
+init([Id, Module, NbInputs, NbOutputs, Params]) ->
+    {ok, #state{id = Id,
         implementation = Module,
         input_values = false_list(NbInputs),
         output_values = false_list(NbOutputs),
@@ -158,19 +157,19 @@ handle_cast({set_input, Index, Value},
 handle_cast({new_outputs, NewOutputs}, #state{inner_state = Inner} = State) ->
     handle_new_outputs(NewOutputs, Inner, State);
 
-handle_cast({connect, Output, Destination, Input},
+handle_cast({connect, Output, Destination, Input, Id},
         #state{output_connections = Connections} = State) ->
     Cur = lists:nth(Output, Connections),
     NewConnections =
-        replace_list(Connections, Output, [{Destination, Input} | Cur]),
+        replace_list(Connections, Output, [{Id, Destination, Input} | Cur]),
     {noreply, State#state{output_connections = NewConnections}};
 
-handle_cast({disconnect, Output, Destination, Input},
+handle_cast({disconnect, Output, Id},
         #state{output_connections = Connections} = State) ->
     Cur = lists:nth(Output, Connections),
     NewConnections =
         replace_list(Connections, Output,
-            remove_first_match({Destination, Input},  Cur)),
+            lists:keydelete(Id, 1,  Cur)),
     {noreply, State#state{output_connections = NewConnections}};
 
 handle_cast(stop, State) ->
@@ -228,9 +227,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 handle_new_outputs(NewOutputs, NewInner,
-        #state{name = Name, output_values = Outputs, output_connections = Connections} =
+        #state{id = Id, output_values = Outputs, output_connections = Connections} =
             State) ->
-    io:format("~s: ~w~n", [Name, NewOutputs]),
+    io:format("~p: output=~w~n", [Id, NewOutputs]),
     notify(Outputs, NewOutputs, Connections),
     {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
 
@@ -264,7 +263,7 @@ notify([_HOld | ROld], [HNew | RNew], [HCon | RCon]) ->
 
 notify_all(_Value, []) ->
     undefined;
-notify_all(Value, [{Pid, Input} | Rest]) ->
+notify_all(Value, [{_Id, Pid, Input} | Rest]) ->
     set_input(Pid, Input, Value),
     notify_all(Value, Rest).
 

@@ -12,14 +12,16 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, handle_event/2]).
+-export([start_link/0, handle_event/2, iterate_status/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
+-record(element_mapping, {id :: integer(), pid :: pid()}).
+
 -record(state, {
-    elements = #{} :: #{integer() => pid()}
+    elements = [] :: #element_mapping{}
 }).
 
 -include("ehome_types.hrl").
@@ -37,7 +39,11 @@
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+-spec(iterate_status(Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok)) -> ok).
+iterate_status(Callback) ->
+    gen_server:cast(?MODULE, {iterate_status, Callback}). %TODO: implement
 
 handle_event(Sup, Event) ->
     gen_server:cast(Sup, {handle_event, Event}).
@@ -168,19 +174,18 @@ get_start_func(#element{id = Id, type = <<"switch">>}) ->
     {ehome_switch, start_link, [Id]}.
 
 pid_from_id(Id, #state{elements = Elements}) ->
-    case maps:get(Id, Elements) of
+    case lists:keyfind(Id, #element_mapping.id, Elements) of
         false ->
             io:format("Unknown element: ~p~n", [Id]),
             false;
-        Pid -> Pid
+        #element_mapping{pid = Pid} -> Pid
     end.
 
-
 add_id(Id, Pid, #state{elements = Elements} = State) ->
-    State#state{elements = maps:put(Id, Pid, Elements)}.
+    State#state{elements = [#element_mapping{id = Id, pid = Pid} | Elements]}.
 
 remove_id(Id, #state{elements = Elements} = State) ->
-    State#state{elements = maps:remove(Id, Elements)}.
+    State#state{elements = lists:keydelete(Id, #element_mapping.id, Elements)}.
 
 handle_event_impl({create, #element{id = Id} = Element}, State) ->
     {Module, Fun, Args} = get_start_func(Element),
@@ -194,30 +199,29 @@ handle_event_impl({delete, #element{id = Id}}, State) ->
 
 handle_event_impl(
         {create, #connection{source_id = SourceId, source_output = SourceOutput,
-            target_id = TargetId, target_input = TargetInput}},
+            target_id = TargetId, target_input = TargetInput, id = Id}},
         State) ->
     SourcePid = pid_from_id(SourceId, State),
     TargetPid = pid_from_id(TargetId, State),
     if
         (SourcePid =/= false) and (TargetPid =/= false) ->
             ehome_element:connect(SourcePid, SourceOutput, TargetPid,
-                TargetInput);
+                TargetInput, Id);
         true ->
+            io:format("Create connection: Cannot find source or target element"),
             false
     end,
     State;
 
 handle_event_impl(
-        {delete, #connection{source_id = SourceId, source_output = SourceOutput,
-            target_id = TargetId, target_input = TargetInput}},
+        {delete, #connection{source_id = SourceId, source_output = SourceOutput, id = Id}},
         State) ->
     SourcePid = pid_from_id(SourceId, State),
-    TargetPid = pid_from_id(TargetId, State),
     if
-        (SourcePid =/= false) and (TargetPid =/= false) ->
-            ehome_element:disconnect(SourcePid, SourceOutput, TargetPid,
-                TargetInput);
+        (SourcePid =/= false) ->
+            ehome_element:disconnect(SourcePid, SourceOutput, Id);
         true ->
+            io:format("Delete connection: Cannot find source or target element"),
             false
     end,
     State;

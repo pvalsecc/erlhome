@@ -20,8 +20,8 @@ init(Req, _Opts) ->
     {cowboy_websocket, Req, #state{}, 60000}.
     %TODO: add to the client ping sending every 30 seconds
 
-websocket_handle(Frame, Req, State) ->
-    io:format("websocket_handle: ~p~n", [Frame]),
+websocket_handle({text, Text}, Req, State) ->
+    io:format("websocket_handle: ~p~n", [Text]),
     {ok, Req, State}.
 
 websocket_info(send_current_states, Req, State) ->

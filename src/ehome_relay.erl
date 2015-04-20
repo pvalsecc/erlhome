@@ -17,15 +17,17 @@
 -export([init/1, new_inputs/3]).
 
 -record(state, {
-    status = false :: boolean()
+    status = false :: boolean(),
+    id :: integer()
 }).
 
-start_link(Name) ->
-    ehome_element:start_link(Name, ehome_relay, 1, 0, []).
+start_link(Id) ->
+    ehome_element:start_link(Id, ehome_relay, 1, 0, Id).
 
 
-init(_Args) ->
-    #state{}.
+init(Id) ->
+    #state{id = Id}.
 
-new_inputs([Input], _OldOutputs, State) ->
-    #state{status = Input}.
+new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
+    io:format("Relay ~p: ~p~n", [Id, Input]),
+    State#state{status = Input}.
