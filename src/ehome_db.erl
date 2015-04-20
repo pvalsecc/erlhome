@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, stop/0]).
 -export([get_schemas/0, get_schema/1, create_schema/1, update_schema/2,
     delete_schema/1]).
 -export([create_element/2, update_element/3, delete_element/2,
@@ -300,16 +300,20 @@ create_sub(SchemaId, #state{next_sub_id = Id} = State,
         Modifier, SubFactory) ->
     NewSub = SubFactory(Id),
     Modifier(SchemaId, fun(Subs) ->
+        gen_event:notify(change_notif, {create, NewSub}),
         {Id, [NewSub | Subs]}
     end, State#state{next_sub_id = Id + 1}).
 
 update_sub(SchemaId, SubId, Sub, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
+        gen_event:notify(change_notif, {update, Sub}),
         {true, lists:keyreplace(SubId, #element.id, Subs, Sub)}
     end, State).
 
 delete_sub(SchemaId, SubId, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
+        gen_event:notify(change_notif,
+            {delete, lists:keyfind(SubId, #element.id, Subs)}),
         {true, lists:keydelete(SubId, #element.id, Subs)}
     end, State).
 
@@ -371,7 +375,8 @@ schema_test() ->
     stop().
 
 element_test() ->
-    {ok, _PId} = start_link(),
+    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    {ok, _PId2} = start_link(),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
     Element = #element{type = "test"},
@@ -394,10 +399,12 @@ element_test() ->
     Schema4 = Schema3#schema{elements = []},
     Schema4 = get_schema(SchemaId),
     false = get_element(SchemaId, ElementId),
-    stop().
+    stop(),
+    gen_event:stop(change_notif).
 
 connection_test() ->
-    {ok, _PId} = start_link(),
+    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    {ok, _PId2} = start_link(),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
     Connection = #connection{source_id = 1, source_output = 1, target_id = 1,
@@ -421,4 +428,5 @@ connection_test() ->
     Schema4 = Schema3#schema{connections = []},
     Schema4 = get_schema(SchemaId),
     false = get_connection(SchemaId, ConnectionId),
-    stop().
+    stop(),
+    gen_event:stop(change_notif).
