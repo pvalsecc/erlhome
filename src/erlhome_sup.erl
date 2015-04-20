@@ -25,6 +25,8 @@ start_link() ->
 init([]) ->
     {ok, { {one_for_one, 5, 10}, [
         {change_notif, {gen_event, start_link, [{local, change_notif}]},
-            permanent, 5000, worker, [gen_event]},
-        {db, {ehome_db, start_link, []}, permanent, 5000, worker, [ehome_db]}
-    ]} }.
+            permanent, 5000, worker, dynamic},
+        {db, {ehome_db, start_link, []}, permanent, 5000, worker, [ehome_db]},
+        {elements_sup, {ehome_elements_sup, start_link, []},
+            permanent, 5000, worker, [ehome_elements_sup]}
+    ]}}.

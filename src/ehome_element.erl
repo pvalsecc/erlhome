@@ -21,8 +21,8 @@
     {NewOutputs :: list(boolean), NewInner :: any()}.
 
 %% API
--export([start_link/5, set_input/3, new_outputs/2, connect/4,
-    get_inputs/1, get_outputs/1]).
+-export([start_link/5, set_input/3, new_outputs/2, connect/4, disconnect/4,
+    get_inputs/1, get_outputs/1, stop/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -71,11 +71,19 @@ new_outputs(Gate, NewOutputs) ->
 connect(Gate, Output, Destination, Input) ->
     gen_server:cast(Gate, {connect, Output, Destination, Input}).
 
+-spec(disconnect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
+        Input :: pos_integer()) -> ok).
+disconnect(Gate, Output, Destination, Input) ->
+    gen_server:cast(Gate, {disconnect, Output, Destination, Input}).
+
 get_outputs(Gate) ->
-    gen_server:call(Gate, {get_outputs}).
+    gen_server:call(Gate, get_outputs).
 
 get_inputs(Gate) ->
-    gen_server:call(Gate, {get_inputs}).
+    gen_server:call(Gate, get_inputs).
+
+stop(Gate) ->
+    gen_server:cast(Gate, stop).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -118,9 +126,9 @@ init([Name, Module, NbInputs, NbOutputs, Params]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({get_outputs}, _From, #state{output_values = Outputs} = State) ->
+handle_call(get_outputs, _From, #state{output_values = Outputs} = State) ->
     {reply, Outputs, State};
-handle_call({get_inputs}, _From, #state{input_values = Inputs} = State) ->
+handle_call(get_inputs, _From, #state{input_values = Inputs} = State) ->
     {reply, Inputs, State}.
 
 %%--------------------------------------------------------------------
@@ -155,7 +163,18 @@ handle_cast({connect, Output, Destination, Input},
     Cur = lists:nth(Output, Connections),
     NewConnections =
         replace_list(Connections, Output, [{Destination, Input} | Cur]),
-    {noreply, State#state{output_connections = NewConnections}}.
+    {noreply, State#state{output_connections = NewConnections}};
+
+handle_cast({disconnect, Output, Destination, Input},
+        #state{output_connections = Connections} = State) ->
+    Cur = lists:nth(Output, Connections),
+    NewConnections =
+        replace_list(Connections, Output,
+            remove_first_match({Destination, Input},  Cur)),
+    {noreply, State#state{output_connections = NewConnections}};
+
+handle_cast(stop, State) ->
+    {stop, normal, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -227,6 +246,13 @@ replace_list([_ | Rest], 1, Value) ->
 replace_list([Head | Rest], Index, Value) ->
     [Head | replace_list(Rest, Index - 1, Value)].
 
+remove_first_match(_ToRemove, []) ->
+    [];
+remove_first_match(ToRemove, [ToRemove|Rest]) ->
+    Rest;
+remove_first_match(ToRemove, [Cur|Rest]) ->
+    [Cur|remove_first_match(ToRemove, Rest)].
+
 notify([], [], []) ->
     undefined;
 notify([H | ROld], [H | RNew], [_ | RCon]) ->
@@ -257,3 +283,8 @@ replace_list_test() ->
     [x, 2, 3] = replace_list(List, 1, x),
     [1, x, 3] = replace_list(List, 2, x),
     [1, 2, x] = replace_list(List, 3, x).
+
+remove_first_match_test() ->
+    List = [1, 2, 3, 2],
+    [1, 3, 2] = remove_first_match(2, List),
+    List = remove_first_match(12, List).
