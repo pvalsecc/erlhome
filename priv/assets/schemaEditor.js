@@ -1,4 +1,6 @@
 var TYPE2SHAPE = {
+    'switch': joint.shapes.logic.Input,
+    relay: joint.shapes.logic.Output,
     or: joint.shapes.logic.Or,
     and: joint.shapes.logic.And,
     xor: joint.shapes.logic.Xor
