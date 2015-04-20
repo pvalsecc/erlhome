@@ -43,7 +43,7 @@ init([Fun]) ->
     #state{function = Fun}.
 
 new_inputs([A, B], _OldOutputs, #state{function = Fun} = State) ->
-    {[Fun(A, B)], State}.
+    {new_outputs, [Fun(A, B)], State}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -51,43 +51,34 @@ new_inputs([A, B], _OldOutputs, #state{function = Fun} = State) ->
 
 -include_lib("eunit/include/eunit.hrl").
 
-wait_queue_empty(Pid) ->
-    case erlang:process_info(Pid, message_queue_len) of
-        {message_queue_len, 0} ->
-            ok;
-        _ ->
-            timer:sleep(1),
-            wait_queue_empty(Pid)
-    end.
-
 and_test() ->
     {ok, And} = and_start_link("AND"),
     [false] = ehome_element:get_outputs(And),
     ehome_element:set_input(And, 1, true),
-    wait_queue_empty(And),
+    test_utils:wait_queue_empty(And),
     [false] = ehome_element:get_outputs(And),
     ehome_element:set_input(And, 2, true),
-    wait_queue_empty(And),
+    test_utils:wait_queue_empty(And),
     [true] = ehome_element:get_outputs(And).
 
 or_test() ->
     {ok, Or} = or_start_link("OR"),
     [false] = ehome_element:get_outputs(Or),
     ehome_element:set_input(Or, 1, true),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(Or),
     [true] = ehome_element:get_outputs(Or),
     ehome_element:set_input(Or, 2, true),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(Or),
     [true] = ehome_element:get_outputs(Or).
 
 xor_test() ->
     {ok, Or} = xor_start_link("XOR"),
     [false] = ehome_element:get_outputs(Or),
     ehome_element:set_input(Or, 1, true),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(Or),
     [true] = ehome_element:get_outputs(Or),
     ehome_element:set_input(Or, 2, true),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(Or),
     [false] = ehome_element:get_outputs(Or).
 
 connection_test() ->
@@ -96,12 +87,12 @@ connection_test() ->
     ok = ehome_element:connect(And, 1, Or, 1),
     [false] = ehome_element:get_outputs(Or),
     ehome_element:set_input(And, 2, true),
-    wait_queue_empty(And),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(And),
+    test_utils:wait_queue_empty(Or),
     [false] = ehome_element:get_outputs(Or),
     ehome_element:set_input(And, 1, true),
-    wait_queue_empty(And),
-    wait_queue_empty(Or),
+    test_utils:wait_queue_empty(And),
+    test_utils:wait_queue_empty(Or),
     [true] = ehome_element:get_outputs(Or).
 
 multi_connection_test() ->
@@ -113,14 +104,14 @@ multi_connection_test() ->
     [false] = ehome_element:get_outputs(Or1),
     [false] = ehome_element:get_outputs(Or2),
     ehome_element:set_input(And, 2, true),
-    wait_queue_empty(And),
-    wait_queue_empty(Or1),
-    wait_queue_empty(Or2),
+    test_utils:wait_queue_empty(And),
+    test_utils:wait_queue_empty(Or1),
+    test_utils:wait_queue_empty(Or2),
     [false] = ehome_element:get_outputs(Or1),
     [false] = ehome_element:get_outputs(Or2),
     ehome_element:set_input(And, 1, true),
-    wait_queue_empty(And),
-    wait_queue_empty(Or1),
-    wait_queue_empty(Or2),
+    test_utils:wait_queue_empty(And),
+    test_utils:wait_queue_empty(Or1),
+    test_utils:wait_queue_empty(Or2),
     [true] = ehome_element:get_outputs(Or1),
     [true] = ehome_element:get_outputs(Or2).

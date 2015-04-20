@@ -21,7 +21,8 @@
     {NewOutputs :: list(boolean), NewInner :: any()}.
 
 %% API
--export([start_link/5, set_input/3, new_outputs/3, connect/4, get_outputs/1]).
+-export([start_link/5, set_input/3, new_outputs/2, connect/4,
+    get_inputs/1, get_outputs/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -61,8 +62,9 @@ start_link(Name, Module, NbInputs, NbOutputs, Params) ->
 set_input(Gate, Index, Value) ->
     gen_server:cast(Gate, {set_input, Index, Value}).
 
-new_outputs(Gate, NewOutputs, NewInner) ->
-    gen_server:cast(Gate, {new_outputs, NewOutputs, NewInner}).
+-spec(new_outputs(Gate :: pid(), NewOutputs :: [boolean()]) -> ok).
+new_outputs(Gate, NewOutputs) ->
+    gen_server:cast(Gate, {new_outputs, NewOutputs}).
 
 -spec(connect(Gate :: pid(), Output :: pos_integer(), Destination :: pid(),
         Input :: pos_integer()) -> ok).
@@ -71,6 +73,9 @@ connect(Gate, Output, Destination, Input) ->
 
 get_outputs(Gate) ->
     gen_server:call(Gate, {get_outputs}).
+
+get_inputs(Gate) ->
+    gen_server:call(Gate, {get_inputs}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -114,7 +119,9 @@ init([Name, Module, NbInputs, NbOutputs, Params]) ->
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_call({get_outputs}, _From, #state{output_values = Outputs} = State) ->
-    {reply, Outputs, State}.
+    {reply, Outputs, State};
+handle_call({get_inputs}, _From, #state{input_values = Inputs} = State) ->
+    {reply, Inputs, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -133,15 +140,15 @@ handle_cast({set_input, Index, Value},
             inner_state = Inner} = State) ->
     NewInputs = replace_list(Inputs, Index, Value),
     case Impl:new_inputs(NewInputs, Outputs, Inner) of
-        {NewOutputs, NewInner} ->
+        {new_outputs, NewOutputs, NewInner} ->
             handle_new_outputs(NewOutputs, NewInner,
                 State#state{input_values = NewInputs});
         NewInner ->
             {noreply, State#state{input_values = NewInputs, inner_state = NewInner}}
     end;
 
-handle_cast({new_outputs, NewOutputs, NewInner}, State) ->
-    handle_new_outputs(NewOutputs, NewInner, State);
+handle_cast({new_outputs, NewOutputs}, #state{inner_state = Inner} = State) ->
+    handle_new_outputs(NewOutputs, Inner, State);
 
 handle_cast({connect, Output, Destination, Input},
         #state{output_connections = Connections} = State) ->
