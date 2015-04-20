@@ -66,7 +66,6 @@ get_schema_url(Config) ->
 
 create_element(UrlSchema, Type) ->
     Json = create_json(Type),
-    %TODO: why is it not 201?
     {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {
                 rest_utils:absolute_url(UrlSchema ++ "/elements"),

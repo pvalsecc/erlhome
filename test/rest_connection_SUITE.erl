@@ -66,7 +66,6 @@ get_schema_url(Config) ->
 
 create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput) ->
     Json = create_json(SourceId, SourceOutput, TargetId, TargetInput),
-    %TODO: why is it not 201?
     {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {
             rest_utils:absolute_url(UrlSchema ++ "/connections"),

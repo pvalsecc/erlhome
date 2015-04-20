@@ -73,7 +73,6 @@ get_schemas() ->
 
 create_schema(Name) ->
     Json = create_json(Name),
-    %TODO: why is it not 201?
     {ok, {{_Version, 200, _Reason}, Headers, _Body}} =
         httpc:request(post, {rest_utils:absolute_url("/schemas"), [],
             "application/json", Json},
