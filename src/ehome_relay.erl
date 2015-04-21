@@ -9,6 +9,8 @@
 -module(ehome_relay).
 -author("pvalsecc").
 
+-include("ehome_types.hrl").
+
 -behaviour(ehome_element).
 
 %% API
@@ -30,7 +32,11 @@ init(Id) ->
 
 new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
     io:format("Relay ~p: ~p~n", [Id, Input]),
+    gen_event:notify(status_notif, create_notif(Id, Input)),
     State#state{status = Input}.
 
 iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(relay, Id, Status, Acc).
+    Callback(create_notif(Id, Status), Acc).
+
+create_notif(Id, Status) ->
+    #notif{type = relay, id = Id, value = Status}.

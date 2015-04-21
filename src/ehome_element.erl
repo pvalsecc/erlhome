@@ -175,11 +175,15 @@ handle_cast({new_outputs, NewOutputs}, #state{inner_state = Inner} = State) ->
     handle_new_outputs(NewOutputs, Inner, State);
 
 handle_cast({connect, Output, Destination, Input, Id},
-        #state{output_connections = Connections} = State) ->
+        #state{output_connections = Connections,
+               output_values = Values} = State) ->
     Cur = lists:nth(Output, Connections),
     NewConnections =
         replace_list(Connections, Output, [{Id, Destination, Input} | Cur]),
-    {noreply, State#state{output_connections = NewConnections}};
+    NewState = State#state{output_connections = NewConnections},
+    Value = lists:nth(Output, Values),
+    notify_all(Value, [{Id, Destination, Input}]),
+    {noreply, NewState};
 
 handle_cast({disconnect, Output, Id},
         #state{output_connections = Connections} = State) ->
@@ -280,8 +284,10 @@ notify([_HOld | ROld], [HNew | RNew], [HCon | RCon]) ->
 
 notify_all(_Value, []) ->
     undefined;
-notify_all(Value, [{_Id, Pid, Input} | Rest]) ->
+notify_all(Value, [{Id, Pid, Input} | Rest]) ->
     set_input(Pid, Input, Value),
+    gen_event:notify(status_notif,
+        #notif{type = connection, id = Id, value = Value}),
     notify_all(Value, Rest).
 
 iterate_status_outputs(_Callback, Acc, [], []) ->
@@ -293,7 +299,7 @@ iterate_status_outputs(Callback, Acc, [Value|VRest], [Connections|CRest]) ->
 iterate_status_output(_Callback, Acc, _Value, []) ->
     Acc;
 iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
-    Acc1 = Callback(connection, Id, Value, Acc),
+    Acc1 = Callback(#notif{type = connection, id = Id, value = Value}, Acc),
     iterate_status_output(Callback, Acc1, Value, Rest).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

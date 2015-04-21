@@ -12,7 +12,7 @@
 -behaviour(gen_event).
 
 %% API
--export([register/2]).
+-export([register/3]).
 
 %% gen_event callbacks
 -export([init/1,
@@ -41,9 +41,9 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(register(Module :: atom(), Target :: pid()) -> ok).
-register(Module, Target) ->
-    gen_event:add_handler(change_notif, ?MODULE, {Module, Target}).
+-spec(register(GenEvent :: pid(), Module :: atom(), Target :: pid()) -> ok).
+register(GenEvent, Module, Target) ->
+    gen_event:add_sup_handler(GenEvent, ?MODULE, {Module, Target}).
 
 %%%===================================================================
 %%% gen_event callbacks

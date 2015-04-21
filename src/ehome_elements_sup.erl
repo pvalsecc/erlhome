@@ -71,7 +71,7 @@ stop(Sup) ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     process_flag(trap_exit, true),
-    ehome_event_forwarder:register(?MODULE, self()),
+    ehome_event_forwarder:register(change_notif, ?MODULE, self()),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------

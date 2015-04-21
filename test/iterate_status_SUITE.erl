@@ -39,13 +39,13 @@ test(Config) ->
     ehome_elements_sup:handle_event(Sup, {create,
         #connection{id = 3, source_id = 1, source_output = 1,
                     target_id = 2, target_input = 1}}),
-    Actual = ehome_elements_sup:iterate_status(fun(Type, Id, Value, Acc) ->
-        [{Type, Id, Value}|Acc]
+    Actual = ehome_elements_sup:iterate_status(fun(Notif, Acc) ->
+        [Notif|Acc]
     end, []),
     Expected = [
-        {switch, 1, false},
-        {relay, 2, false},
-        {connection, 3, false}
+        #notif{type = switch, id = 1, value = false},
+        #notif{type = relay, id = 2, value = false},
+        #notif{type = connection, id = 3, value = false}
     ],
     io:format("Actual ~p~n", [Actual]),
     true = sets:from_list(Actual) == sets:from_list(Expected).

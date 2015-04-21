@@ -9,6 +9,8 @@
 -module(ehome_switch).
 -author("pvalsecc").
 
+-include("ehome_types.hrl").
+
 -behaviour(ehome_element).
 
 %% API
@@ -35,7 +37,7 @@ new_inputs(_Inputs, _OldOutputs, _State) ->
     erlang:error(not_implemented).
 
 iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(switch, Id, Status, Acc).
+    Callback(#notif{type = switch, id = Id, value = Status}, Acc).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs
