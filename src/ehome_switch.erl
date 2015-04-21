@@ -45,6 +45,7 @@ iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
 -include_lib("eunit/include/eunit.hrl").
 
 switch_test() ->
+    {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, Switch} = start_link(1),
     {ok, Relay} = ehome_relay:start_link(2),
     ehome_element:connect(Switch, 1, Relay, 1, 1),
@@ -53,4 +54,5 @@ switch_test() ->
     test_utils:wait_queue_empty(Switch),
     test_utils:wait_queue_empty(Relay),
     timer:sleep(10), %TODO: understand why...
-    [true] = ehome_element:get_inputs(Relay).
+    [true] = ehome_element:get_inputs(Relay),
+    gen_event:stop(Events).

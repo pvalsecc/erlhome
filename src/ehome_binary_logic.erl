@@ -85,6 +85,7 @@ xor_test() ->
     [false] = ehome_element:get_outputs(Or).
 
 connection_test() ->
+    {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, And} = and_start_link(1),
     {ok, Or} = or_start_link(2),
     ok = ehome_element:connect(And, 1, Or, 1, 1),
@@ -96,9 +97,11 @@ connection_test() ->
     ehome_element:set_input(And, 1, true),
     test_utils:wait_queue_empty(And),
     test_utils:wait_queue_empty(Or),
-    [true] = ehome_element:get_outputs(Or).
+    [true] = ehome_element:get_outputs(Or),
+    gen_event:stop(Events).
 
 multi_connection_test() ->
+    {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, And} = and_start_link(1),
     {ok, Or1} = or_start_link(2),
     {ok, Or2} = or_start_link(3),
@@ -117,4 +120,5 @@ multi_connection_test() ->
     test_utils:wait_queue_empty(Or1),
     test_utils:wait_queue_empty(Or2),
     [true] = ehome_element:get_outputs(Or1),
-    [true] = ehome_element:get_outputs(Or2).
+    [true] = ehome_element:get_outputs(Or2),
+    gen_event:stop(Events).

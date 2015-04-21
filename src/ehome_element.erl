@@ -286,8 +286,7 @@ notify_all(_Value, []) ->
     undefined;
 notify_all(Value, [{Id, Pid, Input} | Rest]) ->
     set_input(Pid, Input, Value),
-    gen_event:notify(status_notif,
-        #notif{type = connection, id = Id, value = Value}),
+    gen_event:notify(status_notif, connection_notif(Id, Value)),
     notify_all(Value, Rest).
 
 iterate_status_outputs(_Callback, Acc, [], []) ->
@@ -299,8 +298,11 @@ iterate_status_outputs(Callback, Acc, [Value|VRest], [Connections|CRest]) ->
 iterate_status_output(_Callback, Acc, _Value, []) ->
     Acc;
 iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
-    Acc1 = Callback(#notif{type = connection, id = Id, value = Value}, Acc),
+    Acc1 = Callback(connection_notif(Id, Value), Acc),
     iterate_status_output(Callback, Acc1, Value, Rest).
+
+connection_notif(Id, Value) ->
+    #notif{type = connection, id = Id, value = Value}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

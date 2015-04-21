@@ -19,8 +19,8 @@
 init(Req, _Opts) ->
     self() ! send_current_states,
     ehome_event_forwarder:register(status_notif, ?MODULE, self()),
-    {cowboy_websocket, Req, #state{}, 60000}.
-    %TODO: add to the client ping sending every 30 seconds
+    {cowboy_websocket, Req, #state{}}.
+    %TODO: add 60s timeout and have the client ping every 30s
 
 handle_event(Target, Event) ->
     Target ! {event, Event}.
@@ -30,16 +30,16 @@ websocket_handle({text, Text}, Req, State) ->
     {ok, Req, State}.
 
 websocket_info(send_current_states, Req, State) ->
-    Content = ehome_elements_sup:iterate_status(fun build_message/4, []),
+    Content = ehome_elements_sup:iterate_status(fun build_message/2, []),
     {reply, Content, Req, State};
 
-websocket_info({event, #notif{type = Type, id = Id, value = Value}}, Req,
+websocket_info({event, Notif}, Req,
         State) ->
-    {reply, build_message(Type, Id, Value), Req, State}.
+    {reply, build_message(Notif), Req, State}.
 
-build_message(Type, Id, Value, Acc) ->
-    [build_message(Type, Id, Value) | Acc].
+build_message(Notif, Acc) ->
+    [build_message(Notif) | Acc].
 
-build_message(Type, Id, Value) ->
+build_message(#notif{type = Type, id = Id, value = Value}) ->
     {text, jiffy:encode(#{type => Type, id => Id, value => Value})}.
 

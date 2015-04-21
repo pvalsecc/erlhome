@@ -21,12 +21,13 @@ all() ->
     [test].
 
 init_per_testcase(_TestCase, Config) ->
-    {ok, Events} = gen_event:start_link({local, change_notif}),
+    {ok, Change} = gen_event:start_link({local, change_notif}),
+    {ok, Status} = gen_event:start_link({local, status_notif}),
     {ok, Sup} = ehome_elements_sup:start_link(),
-    [{events, Events}, {sup, Sup} | Config].
+    [{events, [Change, Status]}, {sup, Sup} | Config].
 
 end_per_testcase(_TestCase, Config) ->
-    gen_event:stop(get_config(events, Config)),
+    lists:map(fun gen_event:stop/1, get_config(events, Config)),
     ehome_elements_sup:stop(get_config(sup, Config)),
     Config.
 
