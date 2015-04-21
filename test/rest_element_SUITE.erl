@@ -31,12 +31,12 @@ end_per_testcase(TestCase, Config) ->
 
 create(Config) ->
     UrlSchema = get_schema_url(Config),
-    Url1 = UrlSchema ++ "/elements/1",
+    Url1 = UrlSchema ++ "/elements/2",
     Url1 = create_element(UrlSchema, "element1"),
     Id = rest_utils:id_from_url(Url1),
     #{id := Id, type := "element1", x := 1, y := 1} = rest_utils:get_json(Url1),
 
-    Url2 = UrlSchema ++ "/elements/2",
+    Url2 = UrlSchema ++ "/elements/3",
     Url2 = create_element(UrlSchema, "element2"),
     #{elements := Elements} = rest_utils:get_json(UrlSchema),
     [#{type := Type1}, #{type := Type2}] = Elements,

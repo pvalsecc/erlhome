@@ -77,7 +77,7 @@ function loadGraph(graph, schema) {
     var wires = connections.map(function(con) {
         var model = graph.connectionStore.add(con)[0];
         model.commit();  //tell EXT this guy is in sync with the server
-        return new joint.shapes.logic.Wire({
+        return model.graphLink = new joint.shapes.logic.Wire({
             source: { id: graphId(con.source_id),
                       port: 'out' + con.source_output },
             target: { id: graphId(con.target_id),
@@ -88,6 +88,7 @@ function loadGraph(graph, schema) {
     });
 
     graph.resetCells(nodes.concat(wires));
+    replayStatusCache(graph);
 }
 
 function updateElementPosition(cell) {
@@ -122,6 +123,7 @@ function updateConnection(graph, link) {
         model.set("target_input", parsePort(target.port));
         model.set("vertices", vertices);
     }
+    link.attributes.con.graphLink = link;
 }
 
 function removeConnection(graph, link) {
@@ -177,8 +179,38 @@ function saveSchema(schema, elementStore, connectionStore) {
     }
 }
 
+function updateStatusCache(graph, message) {
+    graph.statusCache[message.id] = message;
+}
+
+function replayStatusCache(graph) {
+    if(!graph.paper) return;
+    for(var id in graph.statusCache) {
+        var message = graph.statusCache[id];
+        handleNotif(graph, graph.paper, message);
+    }
+}
+
+function handleNotif(graph, paper, message) {
+    updateStatusCache(graph, message);
+
+    var cell;
+    if(message.type == 'relay' || message.type == 'switch') {
+        cell = graph.getCell(graphId(message.id));
+    } else if(message.type == 'connection' && graph.connectionStore) {
+        cell = graph.connectionStore.getById(message.id).graphLink;
+    }
+
+    if(cell) {
+        var view = V(paper.findViewByModel(cell).el);
+        view.toggleClass('on', message.value);
+        view.toggleClass('off', !message.value);
+    }
+}
+
 function createSchema(name, grid) {
     var graph = new joint.dia.Graph;
+    graph.statusCache = {};
 
     var toolbar = createSchemaToolbar(graph);
     toolbar.disable();
@@ -245,6 +277,13 @@ function createSchema(name, grid) {
                             return ms && ms.getAttribute('class') && ms.getAttribute('class').indexOf('output') >= 0;
                         }
                     }
+                });
+                graph.paper = paper;
+                var notifListener = new MyWebSocket({
+                    url: 'ws://' + window.location.host + '/notifs'
+                });
+                notifListener.on('message', function(message) {
+                    handleNotif(graph, paper, Ext.decode(message));
                 });
             }
         }

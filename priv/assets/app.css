@@ -9,3 +9,48 @@
 .toolbar {
     background:  #3892d3;
 }
+
+
+
+.on .connection {
+    stroke: #2ecc71;
+    stroke-width: 3px;
+}
+
+.on .connection-wrap {
+    stroke: #2ecc71;
+}
+
+.off .connection {
+    stroke: #cc2e71;
+}
+
+.off .connection-wrap {
+    stroke: #cc2e71;
+}
+
+.element.on .wire {
+    stroke: #2ecc71;
+}
+
+.element.on .body {
+    fill: #2ecc71;
+    stroke: #27ae60;
+}
+
+.element.on text {
+    fill: #ffffff;
+}
+
+.element.off .body {
+    fill: #cc2e71;
+    stroke: #ae2760;
+}
+
+.element.off .wire {
+    stroke: #cc2e71;
+}
+
+.element.off text {
+    fill: #ffffff;
+}

@@ -31,7 +31,6 @@ init(Id) ->
     #state{id = Id}.
 
 new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
-    io:format("Relay ~p: ~p~n", [Id, Input]),
     gen_event:notify(status_notif, create_notif(Id, Input)),
     State#state{status = Input}.
 

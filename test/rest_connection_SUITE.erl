@@ -29,7 +29,7 @@ end_per_testcase(TestCase, Config) ->
 
 create(Config) ->
     UrlSchema = get_schema_url(Config),
-    Url1 = UrlSchema ++ "/connections/1",
+    Url1 = UrlSchema ++ "/connections/2",
     SourceId = 1, SourceOutput = 1, TargetId = 1, TargetInput = 2,
     Url1 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, TargetInput),
     Id = rest_utils:id_from_url(Url1),
@@ -37,7 +37,7 @@ create(Config) ->
       target_id := TargetId, target_input := TargetInput, href := Url1} =
         rest_utils:get_json(Url1),
 
-    Url2 = UrlSchema ++ "/connections/2",
+    Url2 = UrlSchema ++ "/connections/3",
     Url2 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, 1),
     #{connections := Connections} = rest_utils:get_json(UrlSchema),
     [#{target_input := Input1}, #{target_input := Input2}] = Connections,

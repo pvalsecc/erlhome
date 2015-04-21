@@ -30,6 +30,7 @@ switch(Gate, Value) ->
     ehome_element:new_outputs(Gate, [Value]).
 
 init(Id) ->
+    gen_event:notify(status_notif, create_notif(Id, false)),
     #state{id = Id}.
 
 new_inputs(_Inputs, _OldOutputs, _State) ->
@@ -38,6 +39,9 @@ new_inputs(_Inputs, _OldOutputs, _State) ->
 
 iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
     Callback(#notif{type = switch, id = Id, value = Status}, Acc).
+
+create_notif(Id, Value) ->
+    #notif{type = switch, id = Id, value = Value}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

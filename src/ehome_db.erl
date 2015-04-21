@@ -30,8 +30,7 @@
 
 -record(state, {
     schemas = [] :: [#schema{}],
-    next_schema_id :: integer(),
-    next_sub_id :: integer()
+    next_id :: integer()
 }).
 
 %%%===================================================================
@@ -161,7 +160,7 @@ delete_connection(SchemaId, ConnectionId) ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     %TODO: load from disk
-    {ok, #state{next_schema_id = 1, next_sub_id = 1}}.
+    {ok, #state{next_id = 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -271,9 +270,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-add_schema(Schema, #state{next_schema_id = Id, schemas = Schemas} = State) ->
+add_schema(Schema, #state{next_id = Id, schemas = Schemas} = State) ->
     NewSchema = Schema#schema{id = Id},
-    {Id, State#state{next_schema_id = Id + 1, schemas = [NewSchema | Schemas]}}.
+    {Id, State#state{next_id = Id + 1, schemas = [NewSchema | Schemas]}}.
 
 get_schema(Id, Schemas) ->
     lists:keyfind(Id, #schema.id, Schemas).
@@ -296,13 +295,13 @@ get_sub(SchemaId, SubId, State, Modifier) ->
     end, State),
     Ret.
 
-create_sub(SchemaId, #state{next_sub_id = Id} = State,
+create_sub(SchemaId, #state{next_id = Id} = State,
         Modifier, SubFactory) ->
     NewSub = SubFactory(Id),
     Modifier(SchemaId, fun(Subs) ->
         gen_event:notify(change_notif, {create, NewSub}),
         {Id, [NewSub | Subs]}
-    end, State#state{next_sub_id = Id + 1}).
+    end, State#state{next_id = Id + 1}).
 
 update_sub(SchemaId, SubId, Sub, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
@@ -351,10 +350,10 @@ modify_schema_connections(SchemaId, Fun, State) ->
 
 add_schema_test() ->
     NextId = 12,
-    State = #state{next_schema_id = NextId},
+    State = #state{next_id = NextId},
     Schema = #schema{name = "toto"},
     ExpectedSchema = Schema#schema{id = NextId},
-    ExpectedState = State#state{next_schema_id = NextId + 1,
+    ExpectedState = State#state{next_id = NextId + 1,
         schemas = [ExpectedSchema]},
     {NextId, ExpectedState} = add_schema(Schema, State).
 
