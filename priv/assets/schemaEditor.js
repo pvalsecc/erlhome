@@ -208,6 +208,16 @@ function handleNotif(graph, paper, message) {
     }
 }
 
+function handleClick(graph, cell) {
+    var element = cell.model.attributes.element;
+    if(!element) return;
+    var type = element.get("type");
+    if(type == 'switch') {
+        //TODO: send message to server
+        console.log('toggle '+element.get('id'));
+    }
+}
+
 function createSchema(name, grid) {
     var graph = new joint.dia.Graph;
     graph.statusCache = {};
@@ -284,6 +294,9 @@ function createSchema(name, grid) {
                 });
                 notifListener.on('message', function(message) {
                     handleNotif(graph, paper, Ext.decode(message));
+                });
+                paper.on('cell:pointerclick', function(cell) {
+                    handleClick(graph, cell);
                 });
             }
         }

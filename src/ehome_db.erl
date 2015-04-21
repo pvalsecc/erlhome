@@ -287,7 +287,7 @@ delete_schema(Id, #state{schemas = Schemas} = State) ->
         Schemas -> {false, State};
         NewSchemas -> {true, State#state{schemas = NewSchemas}}
     end.
-
+    %TODO: notify elements and connections deletion
 
 get_sub(SchemaId, SubId, State, Modifier) ->
     {Ret, State} = Modifier(SchemaId, fun(Subs) ->
