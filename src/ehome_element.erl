@@ -9,6 +9,8 @@
 -module(ehome_element).
 -author("pvalsecc").
 
+-include("ehome_types.hrl").
+
 -behaviour(gen_server).
 
 -callback init(Args :: list()) ->
@@ -20,13 +22,12 @@
     NewInner :: any() |
     {NewOutputs :: list(boolean), NewInner :: any()}.
 
--callback iterate_status(
-    Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok),
-    Inner :: any()) -> ok.
+-callback iterate_status(Callback :: status_callback(), Acc :: any(),
+        Inner :: any()) -> any().
 
 %% API
 -export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
-    get_inputs/1, get_outputs/1, stop/1, iterate_status/2]).
+    get_inputs/1, get_outputs/1, stop/1, iterate_status/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -88,10 +89,10 @@ get_inputs(Gate) ->
 stop(Gate) ->
     gen_server:cast(Gate, stop).
 
--spec(iterate_status(Gate :: pid(),
-    Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok)) -> ok).
-iterate_status(Gate, Callback) ->
-    gen_server:cast(Gate, {iterate_status, Callback}).
+-spec(iterate_status(Gate :: pid(), Callback :: status_callback(),
+                     Acc :: any) -> any()).
+iterate_status(Gate, Callback, Acc) ->
+    gen_server:call(Gate, {iterate_status, Callback, Acc}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -137,7 +138,14 @@ init([Id, Module, NbInputs, NbOutputs, Params]) ->
 handle_call(get_outputs, _From, #state{output_values = Outputs} = State) ->
     {reply, Outputs, State};
 handle_call(get_inputs, _From, #state{input_values = Inputs} = State) ->
-    {reply, Inputs, State}.
+    {reply, Inputs, State};
+handle_call({iterate_status, Callback, Acc}, _From,
+        #state{implementation = Impl, inner_state = Inner,
+            output_values = Values,
+            output_connections = Connections} = State) ->
+    Acc1 = Impl:iterate_status(Callback, Acc, Inner),
+    Acc2 = iterate_status_outputs(Callback, Acc1, Values, Connections),
+    {reply, Acc2, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -182,13 +190,7 @@ handle_cast({disconnect, Output, Id},
     {noreply, State#state{output_connections = NewConnections}};
 
 handle_cast(stop, State) ->
-    {stop, normal, State};
-
-handle_cast({iterate_status, Callback},
-            #state{implementation = Impl, inner_state = Inner} = State) ->
-    Impl:iterate_status(Callback, Inner),
-    %TODO: connections
-    {noreply, State}.
+    {stop, normal, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -281,6 +283,18 @@ notify_all(_Value, []) ->
 notify_all(Value, [{_Id, Pid, Input} | Rest]) ->
     set_input(Pid, Input, Value),
     notify_all(Value, Rest).
+
+iterate_status_outputs(_Callback, Acc, [], []) ->
+    Acc;
+iterate_status_outputs(Callback, Acc, [Value|VRest], [Connections|CRest]) ->
+    Acc1 = iterate_status_output(Callback, Acc, Value, Connections),
+    iterate_status_outputs(Callback, Acc1, VRest, CRest).
+
+iterate_status_output(_Callback, Acc, _Value, []) ->
+    Acc;
+iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
+    Acc1 = Callback(connection, Id, Value, Acc),
+    iterate_status_output(Callback, Acc1, Value, Rest).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

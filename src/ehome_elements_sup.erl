@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, handle_event/2, iterate_status/1]).
+-export([start_link/0, handle_event/2, iterate_status/2, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -41,12 +41,15 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec(iterate_status(Callback :: fun((Type :: atom(), Id :: integer(), Status :: boolean()) -> ok)) -> ok).
-iterate_status(Callback) ->
-    gen_server:cast(?MODULE, {iterate_status, Callback}). %TODO: implement
+-spec(iterate_status(Callback :: status_callback(), Acc :: any()) -> any()).
+iterate_status(Callback, Acc) ->
+    gen_server:call(?MODULE, {iterate_status, Callback, Acc}).
 
 handle_event(Sup, Event) ->
     gen_server:cast(Sup, {handle_event, Event}).
+
+stop(Sup) ->
+    gen_server:cast(Sup, stop).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -86,6 +89,8 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
+handle_call({iterate_status, Callback, Acc}, _From, State) ->
+    {reply, iterate_status(Callback, Acc, State), State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -102,9 +107,8 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({handle_event, Event}, State) ->
     {noreply, handle_event_impl(Event, State)};
-handle_cast({iterate_status, Callback}, State) ->
-    iterate_status(Callback, State),
-    {noreply, State};
+handle_cast(stop, State) ->
+    {stop, normal, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
 
@@ -239,10 +243,10 @@ handle_event_impl(_Event, State) ->
     State.
 
 
-iterate_status(Callback, #state{elements = Elements}) ->
-    iterate_status(Callback, Elements);
-iterate_status(_Callback, []) ->
-    ok;
-iterate_status(Callback, [#element_mapping{pid = Pid} | Rest]) ->
-    ehome_element:iterate_status(Pid, Callback),
-    iterate_status(Callback, Rest).
+iterate_status(Callback, Acc, #state{elements = Elements}) ->
+    iterate_status(Callback, Acc, Elements);
+iterate_status(_Callback, Acc, []) ->
+    Acc;
+iterate_status(Callback, Acc, [#element_mapping{pid = Pid} | Rest]) ->
+    Acc1 = ehome_element:iterate_status(Pid, Callback, Acc),
+    iterate_status(Callback, Acc1, Rest).

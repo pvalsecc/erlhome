@@ -36,3 +36,7 @@
     elements = [] :: [#element{}],
     connections = [] :: [#connection{}]
 }).
+
+-type status_callback() ::
+    fun((Type :: atom(), Id :: integer(), Status :: boolean(), Acc :: any()) ->
+        any()).

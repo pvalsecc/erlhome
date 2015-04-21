@@ -14,7 +14,7 @@
 %% API
 -export([start_link/1, switch/2]).
 
--export([init/1, new_inputs/3, iterate_status/2]).
+-export([init/1, new_inputs/3, iterate_status/3]).
 
 -record(state, {id :: integer(), status = false :: boolean()}).
 
@@ -34,8 +34,8 @@ new_inputs(_Inputs, _OldOutputs, _State) ->
     %no input => should not be called
     erlang:error(not_implemented).
 
-iterate_status(Callback, #state{id = Id, status = Status}) ->
-    Callback(switch, Id, Status).
+iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
+    Callback(switch, Id, Status, Acc).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs
