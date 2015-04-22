@@ -53,10 +53,9 @@ switch_test() ->
     {ok, Switch} = start_link(1),
     {ok, Relay} = ehome_relay:start_link(2),
     ehome_element:connect(Switch, 1, Relay, 1, 1),
+    test_utils:wait_queues_empty([Switch, Relay]),
     [false] = ehome_element:get_inputs(Relay),
     switch(Switch, true),
-    test_utils:wait_queue_empty(Switch),
-    test_utils:wait_queue_empty(Relay),
-    timer:sleep(10), %TODO: understand why...
+    test_utils:wait_queues_empty([Switch, Relay]),
     [true] = ehome_element:get_inputs(Relay),
     gen_event:stop(Events).

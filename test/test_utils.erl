@@ -10,13 +10,12 @@
 -author("pvalsecc").
 
 %% API
--export([wait_queue_empty/1]).
+-export([wait_queue_empty/1, wait_queues_empty/1]).
+
+wait_queues_empty(Pids) ->
+    lists:foreach(fun wait_queue_empty/1, Pids).
 
 wait_queue_empty(Pid) ->
-    case erlang:process_info(Pid, message_queue_len) of
-        {message_queue_len, 0} ->
-            ok;
-        _ ->
-            timer:sleep(1),
-            wait_queue_empty(Pid)
-    end.
+    %get_inputs is synchronous => when it returns, the queue has been emptied.
+    ehome_element:get_inputs(Pid),
+    ok.
