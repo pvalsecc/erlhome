@@ -15,10 +15,10 @@
 %% API
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
 
--export([elements/1]).
+-export([elements/1, schema_deletion/1]).
 
 all() ->
-    [elements].
+    [elements, schema_deletion].
 
 init_per_testcase(_TestCase, Config) ->
     {ok, _Pid} = gen_event:start_link({local, change_notif}),
@@ -49,3 +49,16 @@ elements(_Config) ->
     true = ehome_db:delete_element(SchemaId, ElementId),
     ExpectedEvents3 = [{delete, UpdatedElement}],
     ExpectedEvents3 = event_recorder:get_events(change_notif).
+
+schema_deletion(_Config) ->
+    SchemaId = ehome_db:create_schema(#schema{name = "schema"}),
+
+    Element = #element{type = "test", x = 1, y = 2},
+    ElementId = ehome_db:create_element(SchemaId, Element),
+    ExpectedElement = Element#element{id = ElementId},
+    ExpectedEvents1 = [{create, ExpectedElement}],
+    ExpectedEvents1 = event_recorder:get_events(change_notif),
+
+    true = ehome_db:delete_schema(SchemaId),
+    ExpectedEvents2 = [{delete, ExpectedElement}],
+    ExpectedEvents2 = event_recorder:get_events(change_notif).

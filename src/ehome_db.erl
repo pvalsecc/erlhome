@@ -283,11 +283,18 @@ update_schema_impl(#schema{id = Id} = Schema, #state{schemas = Schemas} =
     {true, State#state{schemas = NewSchemas}}.
 
 delete_schema(Id, #state{schemas = Schemas} = State) ->
-    case lists:keydelete(Id, #schema.id, Schemas) of
-        Schemas -> {false, State};
-        NewSchemas -> {true, State#state{schemas = NewSchemas}}
+    case lists:keyfind(Id, #schema.id, Schemas) of
+        false -> {false, State};
+        Schema ->
+            notify_schema_deletion(Schema),
+            {true, State#state{schemas = lists:keydelete(Id, #schema.id, Schemas)}}
     end.
-    %TODO: notify elements and connections deletion
+
+notify_schema_deletion(#schema{elements = Elements}) ->
+    lists:foreach(fun notify_sub_deletion/1, Elements).
+
+notify_sub_deletion(Sub) ->
+    gen_event:notify(change_notif, {delete, Sub}).
 
 get_sub(SchemaId, SubId, State, Modifier) ->
     {Ret, State} = Modifier(SchemaId, fun(Subs) ->
@@ -312,11 +319,13 @@ update_sub(SchemaId, SubId, Sub, State, Modifier) ->
 
 delete_sub(SchemaId, SubId, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
-        gen_event:notify(change_notif,
-            {delete, lists:keyfind(SubId, #element.id, Subs)}),
-        {true, lists:keydelete(SubId, #element.id, Subs)}
+        case lists:keyfind(SubId, #element.id, Subs) of
+            false -> {false, Subs};
+            Sub ->
+                notify_sub_deletion(Sub),
+                {true, lists:keydelete(SubId, #element.id, Subs)}
+        end
     end, State).
-
 
 modify_schema(SchemaId, Fun, #state{schemas = Schemas} = State) ->
     case lists:keyfind(SchemaId, #schema.id, Schemas) of
