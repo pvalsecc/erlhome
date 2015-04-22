@@ -15,6 +15,8 @@
 
 -export([create/1, delete/1, update/1]).
 
+-export([create_connection/5]).
+
 all() ->
     [create, delete, update].
 

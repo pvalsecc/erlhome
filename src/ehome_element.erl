@@ -25,9 +25,12 @@
 -callback iterate_status(Callback :: status_callback(), Acc :: any(),
         Inner :: any()) -> any().
 
+-callback control(Type :: binary(), Message :: any(), Inner :: any()) ->
+    {NewOutputs :: [boolean()], NewInner :: any()} | false.
+
 %% API
 -export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
-    get_inputs/1, get_outputs/1, stop/1, iterate_status/3]).
+    get_inputs/1, get_outputs/1, stop/1, iterate_status/3, control/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -94,6 +97,11 @@ stop(Gate) ->
 iterate_status(Gate, Callback, Acc) ->
     gen_server:call(Gate, {iterate_status, Callback, Acc}).
 
+-spec(control(Gate :: pid(), Type :: binary(), Message :: any()) -> true|false).
+control(Gate, Type, Message) ->
+    gen_server:call(Gate, {control, Type, Message}).
+
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -145,7 +153,18 @@ handle_call({iterate_status, Callback, Acc}, _From,
             output_connections = Connections} = State) ->
     Acc1 = Impl:iterate_status(Callback, Acc, Inner),
     Acc2 = iterate_status_outputs(Callback, Acc1, Values, Connections),
-    {reply, Acc2, State}.
+    {reply, Acc2, State};
+handle_call({control, Type, Message}, _From,
+        #state{implementation = Impl, inner_state = Inner} = State) ->
+    case Impl:control(Type, Message, Inner) of
+        {NewOutputs, NewInner} ->
+            {noreply, NewState} =
+                handle_new_outputs(NewOutputs, NewInner, State),
+            {reply, true, NewState};
+        false ->
+            {reply, false, State}
+    end.
+
 
 %%--------------------------------------------------------------------
 %% @private

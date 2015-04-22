@@ -14,7 +14,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([start_link/1]).
+-export([start_link/1, control/3]).
 
 -export([init/1, new_inputs/3, iterate_status/3]).
 
@@ -36,6 +36,10 @@ new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
 
 iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
     Callback(create_notif(Id, Status), Acc).
+
+control(Type, Message, _Inner) ->
+    io:format("ehome_relay: un-supported message ~p/~p~n", [Type, Message]),
+    false.
 
 create_notif(Id, Status) ->
     #notif{type = relay, id = Id, value = Status}.

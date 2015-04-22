@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, handle_event/2, iterate_status/2, stop/1]).
+-export([start_link/0, handle_event/2, iterate_status/2, control/3, stop/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -47,6 +47,11 @@ iterate_status(Callback, Acc) ->
 
 handle_event(Sup, Event) ->
     gen_server:cast(Sup, {handle_event, Event}).
+
+-spec(control(Id :: integer(), Type :: binary(), Message :: any()) ->
+    true|false).
+control(Id, Type, Message) ->
+    gen_server:call(?MODULE, {control, Id, Type, Message}).
 
 stop(Sup) ->
     gen_server:cast(Sup, stop).
@@ -91,6 +96,8 @@ init([]) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_call({iterate_status, Callback, Acc}, _From, State) ->
     {reply, iterate_status(Callback, Acc, State), State};
+handle_call({control, Id, Type, Message}, _From, State) ->
+    {reply, control(Id, Type, Message, State), State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -250,3 +257,9 @@ iterate_status(_Callback, Acc, []) ->
 iterate_status(Callback, Acc, [#element_mapping{pid = Pid} | Rest]) ->
     Acc1 = ehome_element:iterate_status(Pid, Callback, Acc),
     iterate_status(Callback, Acc1, Rest).
+
+control(Id, Type, Message, State) ->
+    case pid_from_id(Id, State) of
+        false -> false;
+        Pid -> ehome_element:control(Pid, Type, Message)
+    end.

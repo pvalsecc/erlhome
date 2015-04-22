@@ -27,12 +27,12 @@ init_per_testcase(_TestCase, Config) ->
     [{events, [Change, Status]}, {sup, Sup} | Config].
 
 end_per_testcase(_TestCase, Config) ->
-    lists:map(fun gen_event:stop/1, get_config(events, Config)),
-    ehome_elements_sup:stop(get_config(sup, Config)),
+    lists:map(fun gen_event:stop/1, rest_utils:get_config(events, Config)),
+    ehome_elements_sup:stop(rest_utils:get_config(sup, Config)),
     Config.
 
 test(Config) ->
-    Sup = get_config(sup, Config),
+    Sup = rest_utils:get_config(sup, Config),
     ehome_elements_sup:handle_event(Sup, {create,
         #element{id = 1, type = <<"switch">>}}),
     ehome_elements_sup:handle_event(Sup, {create,
@@ -50,7 +50,3 @@ test(Config) ->
     ],
     io:format("Actual ~p~n", [Actual]),
     true = sets:from_list(Actual) == sets:from_list(Expected).
-
-get_config(Key, Config) ->
-    {Key, Value} = lists:keyfind(Key, 1, Config),
-    Value.

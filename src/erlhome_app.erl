@@ -17,6 +17,8 @@ start(_StartType, _StartArgs) ->
                 [{schema_id, int}, {sub_id, int}], ehome_rest_elements, []},
             {"/schemas/:schema_id/connections/[:sub_id]",
                 [{schema_id, int}, {sub_id, int}], ehome_rest_connections, []},
+            {"/controls/:type/:element_id", [{element_id, int}],
+                ehome_rest_controls, []},
             {"/notifs", ehome_ws_notifs, []},
             {"/", cowboy_static, {priv_file, erlhome, "assets/index.html"}},
             {"/[...]", cowboy_static, {priv_dir, erlhome, "assets",

@@ -13,7 +13,7 @@
 
 %% API
 -export([and_start_link/1, or_start_link/1, xor_start_link/1,
-    iterate_status/3]).
+    iterate_status/3, control/3]).
 
 %% ehome_element callbacks
 -export([init/1, new_inputs/3]).
@@ -48,6 +48,11 @@ new_inputs([A, B], _OldOutputs, #state{function = Fun} = State) ->
 
 iterate_status(_Callback, Acc, _Inner) ->
     Acc.
+
+control(Type, Message, _Inner) ->
+    io:format("ehome_binary_logic: un-supported message ~p/~p~n",
+        [Type, Message]),
+    false.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

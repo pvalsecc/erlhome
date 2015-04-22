@@ -14,7 +14,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([start_link/1, switch/2]).
+-export([start_link/1, switch/2, control/3]).
 
 -export([init/1, new_inputs/3, iterate_status/3]).
 
@@ -42,6 +42,15 @@ iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
 
 create_notif(Id, Value) ->
     #notif{type = switch, id = Id, value = Value}.
+
+control(<<"switch">>, Message, #state{id = Id} = Inner)
+        when is_boolean(Message) ->
+    gen_event:notify(status_notif, create_notif(Id, Message)),
+    {[Message], Inner#state{status = Message}};
+
+control(Type, Message, _Inner) ->
+    io:format("ehome_switch: un-supported message ~p/~p~n", [Type, Message]),
+    false.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs
