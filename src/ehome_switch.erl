@@ -45,12 +45,18 @@ create_notif(Id, Value) ->
 
 control(<<"switch">>, Message, #state{id = Id} = Inner)
         when is_boolean(Message) ->
-    gen_event:notify(status_notif, create_notif(Id, Message)),
-    {[Message], Inner#state{status = Message}};
+    new_value(Id, Message, Inner);
+
+control(<<"toggle">>, _Message, #state{id = Id, status = OldValue} = Inner) ->
+    new_value(Id, not OldValue, Inner);
 
 control(Type, Message, _Inner) ->
     io:format("ehome_switch: un-supported message ~p/~p~n", [Type, Message]),
     false.
+
+new_value(Id, Value, Inner) ->
+    gen_event:notify(status_notif, create_notif(Id, Value)),
+    {[Value], Inner#state{status = Value}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

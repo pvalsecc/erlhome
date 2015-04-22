@@ -181,7 +181,7 @@ get_start_func(#element{id = Id, type = <<"and">>}) ->
 get_start_func(#element{id = Id, type = <<"or">>}) ->
     {ehome_binary_logic, or_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"xor">>}) ->
-    {ehome_binary_logic, or_start_link, [Id]};
+    {ehome_binary_logic, xor_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"relay">>}) ->
     {ehome_relay, start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"switch">>}) ->

@@ -213,6 +213,12 @@ function handleClick(graph, cell) {
     if(!element) return;
     var type = element.get("type");
     if(type == 'switch') {
+        Ext.Ajax.request({
+            url: '/controls/toggle/' + element.get('id'),
+            method : "PUT",
+            headers: {'Content-Type': 'application/json'},
+            jsonData: true
+        });
         //TODO: send message to server
         console.log('toggle '+element.get('id'));
     }

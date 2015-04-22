@@ -13,10 +13,10 @@
 %% API
 -export([all/0, init_per_testcase/2, end_per_testcase/2]).
 
--export([switch/1]).
+-export([switch/1, toggle/1]).
 
 all() ->
-    [switch].
+    [switch, toggle].
 
 init_per_testcase(TestCase, Config) ->
     NewConfig = rest_schema_SUITE:init_per_testcase(TestCase, Config),
@@ -43,6 +43,19 @@ switch(Config) ->
     IdRelay = rest_utils:get_config(id_relay, Config),
     IdConnection = rest_utils:get_config(id_connection, Config),
     send_control("switch", IdSwitch, true),
+    Expected = [
+        {notif, switch, IdSwitch, true},
+        {notif, connection, IdConnection, true},
+        {notif, relay, IdRelay, true}],
+    Actual = event_recorder:get_events(status_notif),
+    ct:log("Actual = ~p", [Actual]),
+    true = sets:from_list(Actual) == sets:from_list(Expected).
+
+toggle(Config) ->
+    IdSwitch = rest_utils:get_config(id_switch, Config),
+    IdRelay = rest_utils:get_config(id_relay, Config),
+    IdConnection = rest_utils:get_config(id_connection, Config),
+    send_control("toggle", IdSwitch, true),
     Expected = [
         {notif, switch, IdSwitch, true},
         {notif, connection, IdConnection, true},
