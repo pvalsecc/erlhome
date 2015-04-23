@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 10. Apr 2015 23:31
 %%%-------------------------------------------------------------------
--module(ehome_binary_logic).
+-module(ehome_21_gate).
 -author("patrick").
 
 -behaviour(ehome_element).
@@ -41,7 +41,7 @@ start_link(Id, Fun) ->
     ehome_element:start_link(Id, ?MODULE, 2, 1, [Fun]).
 
 init([Fun]) ->
-    #state{function = Fun}.
+    {[false], #state{function = Fun}}.
 
 new_inputs([A, B], _OldOutputs, #state{function = Fun} = State) ->
     {new_outputs, [Fun(A, B)], State}.
@@ -50,7 +50,7 @@ iterate_status(_Callback, Acc, _Inner) ->
     Acc.
 
 control(Type, Message, _Inner) ->
-    io:format("ehome_binary_logic: un-supported message ~p/~p~n",
+    io:format("ehome_21_gate: un-supported message ~p/~p~n",
         [Type, Message]),
     false.
 

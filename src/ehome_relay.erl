@@ -28,7 +28,7 @@ start_link(Id) ->
 
 
 init(Id) ->
-    #state{id = Id}.
+    {[], #state{id = Id}}.
 
 new_inputs([Input], _OldOutputs, #state{id = Id} = State) ->
     gen_event:notify(status_notif, create_notif(Id, Input)),

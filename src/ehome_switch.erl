@@ -31,7 +31,7 @@ switch(Gate, Value) ->
 
 init(Id) ->
     gen_event:notify(status_notif, create_notif(Id, false)),
-    #state{id = Id}.
+    {[false], #state{id = Id}}.
 
 new_inputs(_Inputs, _OldOutputs, _State) ->
     %no input => should not be called

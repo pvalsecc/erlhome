@@ -13,8 +13,7 @@
 
 -behaviour(gen_server).
 
--callback init(Args :: list()) ->
-    State :: any().
+-callback init(Args :: list()) -> {Outputs :: [], State :: any()}.
 
 -callback new_inputs(Inputs :: list(boolean()),
         OldOutputs :: list(boolean()),
@@ -121,12 +120,14 @@ control(Gate, Type, Message) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
 init([Id, Module, NbInputs, NbOutputs, Params]) ->
+    {Outputs, InnerState} = Module:init(Params),
+    NbOutputs = length(Outputs),
     {ok, #state{id = Id,
         implementation = Module,
         input_values = false_list(NbInputs),
-        output_values = false_list(NbOutputs),
+        output_values = Outputs,
         output_connections = create_list(NbOutputs, []),
-        inner_state = Module:init(Params)}}.
+        inner_state = InnerState}}.
 
 %%--------------------------------------------------------------------
 %% @private

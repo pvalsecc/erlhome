@@ -3,7 +3,8 @@ var TYPE2SHAPE = {
     relay: joint.shapes.logic.Output,
     or: joint.shapes.logic.Or,
     and: joint.shapes.logic.And,
-    xor: joint.shapes.logic.Xor
+    xor: joint.shapes.logic.Xor,
+    not: joint.shapes.logic.Not
 };
 
 function graphId(id) {

@@ -177,11 +177,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 get_start_func(#element{id = Id, type = <<"and">>}) ->
-    {ehome_binary_logic, and_start_link, [Id]};
+    {ehome_21_gate, and_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"or">>}) ->
-    {ehome_binary_logic, or_start_link, [Id]};
+    {ehome_21_gate, or_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"xor">>}) ->
-    {ehome_binary_logic, xor_start_link, [Id]};
+    {ehome_21_gate, xor_start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"not">>}) ->
+    {ehome_11_gate, not_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"relay">>}) ->
     {ehome_relay, start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"switch">>}) ->
