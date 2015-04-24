@@ -188,6 +188,12 @@ get_start_func(#element{id = Id, type = <<"relay">>}) ->
     {ehome_relay, start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"switch">>}) ->
     {ehome_switch, start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"up_edge">>}) ->
+    {ehome_edge_gate, up_start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"down_edge">>}) ->
+    {ehome_edge_gate, down_start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"both_edge">>}) ->
+    {ehome_edge_gate, both_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"timer">>}) ->
     {ehome_timer_gate, start_link, [Id, 2000]}.  %TODO: make configurable
 

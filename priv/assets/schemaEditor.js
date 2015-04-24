@@ -27,6 +27,45 @@ joint.shapes.logic.Timer = joint.shapes.logic.IO.extend({
     }, joint.shapes.logic.IO.prototype.defaults)
 });
 
+joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
+    markup: '<g class="rotatable"><g class="scalable"><rect class="body"/></g>'+
+           '<circle class="input"/>'+
+           '<circle class="output"/>'+
+           '<path class="wire wireIn"/>'+
+           '<path class="wire wireOut"/><text/></g>',
+    defaults: joint.util.deepSupplement({
+        type: 'logic.Timer',
+        size: { width: 60, height: 30 },
+        attrs: {
+            '.wire': { stroke: 'black'},
+            '.wireIn': { ref: '.body', 'ref-x': -20, 'ref-y': 0.5,
+                          d: 'M 0 0 L 20 0' },
+            '.wireOut': { ref: '.body', 'ref-dx': 0, 'ref-y': 0.5,
+                          d: 'M 0 0 L 20 0' },
+            '.input': { ref: '.body', 'ref-x': -27, 'ref-y': 0.5,
+                        magnet: 'passive', port: 'in1' },
+            '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
+                         magnet: true, port: 'out1' },
+            text: {'text-transform': 'none'}
+        }
+    }, joint.shapes.logic.IO.prototype.defaults)
+});
+
+function createEdgeClass(type, text) {
+    joint.shapes.logic[type] = joint.shapes.logic.Box11.extend({
+        defaults: joint.util.deepSupplement({
+            type: 'logic.' + type,
+            attrs: {
+                text: {text: text}
+            }
+        }, joint.shapes.logic.Box11.prototype.defaults)
+    })
+}
+
+createEdgeClass('UpEdge', 'up edge');
+createEdgeClass('DownEdge', 'down edge');
+createEdgeClass('BothEdge', 'both edge');
+
 var TYPE2SHAPE = {
     'switch': joint.shapes.logic.Input,
     relay: joint.shapes.logic.Output,
@@ -34,7 +73,10 @@ var TYPE2SHAPE = {
     and: joint.shapes.logic.And,
     xor: joint.shapes.logic.Xor,
     not: joint.shapes.logic.Not,
-    timer: joint.shapes.logic.Timer
+    timer: joint.shapes.logic.Timer,
+    up_edge: joint.shapes.logic.UpEdge,
+    down_edge: joint.shapes.logic.DownEdge,
+    both_edge: joint.shapes.logic.BothEdge
 };
 
 function graphId(id) {

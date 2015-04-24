@@ -35,13 +35,18 @@ new_inputs([false, false], _OldOutputs, State) ->
     State;
 
 new_inputs([true, false], _OldOutputs,
+        #state{delay = 0, waiting = false} = State) ->
+    % special case for delay = 0
+    {new_outputs, [true], State};
+
+new_inputs([true, false], _OldOutputs,
         #state{delay = Delay, waiting = false} = State) ->
     % triggering the timer
     {ok, TRef} = timer:apply_after(Delay,
         ehome_element, new_outputs, [self(), [true]]),
     State#state{waiting = TRef};
 
-new_inputs([true, false], OldOutputs, State) ->
+new_inputs([true, false], _OldOutputs, State) ->
     % already triggered
     State;
 
@@ -71,8 +76,8 @@ maybe_cancel(TRef) ->
 
 -include_lib("eunit/include/eunit.hrl").
 
--define(DELAY, 200).
--define(MARGIN, 50).
+-define(DELAY, 50).
+-define(MARGIN, 10).
 
 nominal_test() ->
     {ok, Timer} = start_link(1, ?DELAY),
