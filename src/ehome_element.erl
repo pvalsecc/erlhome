@@ -15,11 +15,10 @@
 
 -callback init(Args :: list()) -> {Outputs :: [], State :: any()}.
 
--callback new_inputs(Inputs :: list(boolean()),
-        OldOutputs :: list(boolean()),
-        State :: any()) ->
+-callback new_inputs(Inputs :: [boolean()], OldOutputs :: list(boolean()),
+                     State :: any()) ->
     NewInner :: any() |
-    {NewOutputs :: list(boolean), NewInner :: any()}.
+    {new_outputs, NewOutputs :: [boolean()], NewInner :: any()}.
 
 -callback iterate_status(Callback :: status_callback(), Acc :: any(),
         Inner :: any()) -> any().
@@ -59,7 +58,7 @@
 %% @end
 %%--------------------------------------------------------------------
 -spec(start_link(Id :: integer(), Module :: atom(),
-        NbInputs :: integer(), NbOutputs :: integer(), Params :: list()) ->
+        NbInputs :: integer(), NbOutputs :: integer(), Params :: any()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link(Id, Module, NbInputs, NbOutputs, Params) ->
     gen_server:start_link(?MODULE, [Id, Module, NbInputs, NbOutputs, Params],
@@ -178,18 +177,9 @@ handle_call({control, Type, Message}, _From,
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({set_input, Index, Value},
-        #state{implementation = Impl, input_values = Inputs,
-            output_values = Outputs,
-            inner_state = Inner} = State) ->
+handle_cast({set_input, Index, Value}, #state{input_values = Inputs} = State) ->
     NewInputs = replace_list(Inputs, Index, Value),
-    case Impl:new_inputs(NewInputs, Outputs, Inner) of
-        {new_outputs, NewOutputs, NewInner} ->
-            handle_new_outputs(NewOutputs, NewInner,
-                State#state{input_values = NewInputs});
-        NewInner ->
-            {noreply, State#state{input_values = NewInputs, inner_state = NewInner}}
-    end;
+    handle_inputs(State#state{input_values = NewInputs});
 
 handle_cast({new_outputs, NewOutputs}, #state{inner_state = Inner} = State) ->
     handle_new_outputs(NewOutputs, Inner, State);
@@ -274,6 +264,15 @@ handle_new_outputs(NewOutputs, NewInner,
     notify(Outputs, NewOutputs, Connections),
     {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
 
+handle_inputs(#state{implementation = Impl, input_values = Inputs,
+    output_values = Outputs, inner_state = Inner} = State) ->
+    case Impl:new_inputs(Inputs, Outputs, Inner) of
+        {new_outputs, NewOutputs, NewInner} ->
+            handle_new_outputs(NewOutputs, NewInner, State);
+        NewInner ->
+            {noreply, State#state{inner_state = NewInner}}
+    end.
+
 false_list(N) -> create_list(N, false).
 
 create_list(0, _Value) ->
@@ -323,6 +322,7 @@ iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
 
 connection_notif(Id, Value) ->
     #notif{type = connection, id = Id, value = Value}.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

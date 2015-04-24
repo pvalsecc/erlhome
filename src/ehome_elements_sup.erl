@@ -187,7 +187,9 @@ get_start_func(#element{id = Id, type = <<"not">>}) ->
 get_start_func(#element{id = Id, type = <<"relay">>}) ->
     {ehome_relay, start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"switch">>}) ->
-    {ehome_switch, start_link, [Id]}.
+    {ehome_switch, start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"timer">>}) ->
+    {ehome_timer_gate, start_link, [Id, 2000]}.  %TODO: make configurable
 
 pid_from_id(Id, #state{elements = Elements}) ->
     case lists:keyfind(Id, #element_mapping.id, Elements) of

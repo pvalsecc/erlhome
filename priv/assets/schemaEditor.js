@@ -1,10 +1,40 @@
+joint.shapes.logic.Timer = joint.shapes.logic.IO.extend({
+    markup: '<g class="rotatable"><g class="scalable"><rect class="body"/></g>'+
+           '<circle class="input input1"/>'+
+           '<circle  class="input input2"/><circle class="output"/>'+
+           '<path class="wire wireIn1"/>'+
+           '<path class="wire wireIn2"/>'+
+           '<path class="wire wireOut"/><text/></g>',
+    defaults: joint.util.deepSupplement({
+        type: 'logic.Timer',
+        size: { width: 60, height: 40 },
+        attrs: {
+            '.wire': { stroke: 'black'},
+            '.wireIn1': { ref: '.body', 'ref-x': -20, 'ref-y': 0.3,
+                          d: 'M 0 0 L 20 0' },
+            '.wireIn2': { ref: '.body', 'ref-x': -20, 'ref-y': 0.7,
+                          d: 'M 0 0 L 20 0' },
+            '.wireOut': { ref: '.body', 'ref-dx': 0, 'ref-y': 0.5,
+                          d: 'M 0 0 L 20 0' },
+            '.input1': { ref: '.body', 'ref-x': -27, 'ref-y': 0.3,
+                         magnet: 'passive', port: 'in1' },
+            '.input2': { ref: '.body', 'ref-x': -27, 'ref-y': 0.7,
+                         magnet: 'passive', port: 'in2' },
+            '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
+                         magnet: true, port: 'out1' },
+            text: {text: 'start\nreset', 'ref-x': 0, 'text-anchor': 'left'}
+        }
+    }, joint.shapes.logic.IO.prototype.defaults)
+});
+
 var TYPE2SHAPE = {
     'switch': joint.shapes.logic.Input,
     relay: joint.shapes.logic.Output,
     or: joint.shapes.logic.Or,
     and: joint.shapes.logic.And,
     xor: joint.shapes.logic.Xor,
-    not: joint.shapes.logic.Not
+    not: joint.shapes.logic.Not,
+    timer: joint.shapes.logic.Timer
 };
 
 function graphId(id) {
