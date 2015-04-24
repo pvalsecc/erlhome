@@ -22,7 +22,7 @@ all() ->
 
 init_per_testcase(_TestCase, Config) ->
     {ok, _Pid} = gen_event:start_link({local, change_notif}),
-    {ok, _Pid2} = ehome_db:start_link(),
+    {ok, _Pid2} = ehome_db:start_link(false),
     gen_event:add_sup_handler(change_notif, event_recorder, []),
     Config.
 

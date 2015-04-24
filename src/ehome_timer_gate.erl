@@ -9,8 +9,6 @@
 -module(ehome_timer_gate).
 -author("pvalsecc").
 
--include("ehome_types.hrl").
-
 -behaviour(ehome_element).
 
 %% API

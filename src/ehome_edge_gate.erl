@@ -8,7 +8,6 @@
 %%%-------------------------------------------------------------------
 -module(ehome_edge_gate).
 -author("pvalsecc").
--include("ehome_types.hrl").
 
 -behaviour(ehome_element).
 
@@ -21,7 +20,7 @@
     trigger :: up|down|both
 }).
 
--define(DELAY, 1).
+-define(DELAY, 100).
 
 -spec(up_start_link(Id :: integer()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).

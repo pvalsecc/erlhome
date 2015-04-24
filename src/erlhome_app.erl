@@ -29,7 +29,9 @@ start(_StartType, _StartArgs) ->
     {ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
         {env, [{dispatch, Dispatch}]}
     ]),
-    erlhome_sup:start_link().
+    EnablePersistency =
+        application:get_env(erlhome_app, enable_persistency, true),
+    erlhome_sup:start_link(EnablePersistency).
 
 stop(_State) ->
     ok.

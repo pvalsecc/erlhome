@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, stop/0]).
+-export([start_link/1, stop/0]).
 -export([get_schemas/0, get_schema/1, create_schema/1, update_schema/2,
     delete_schema/1]).
 -export([create_element/2, update_element/3, delete_element/2,
@@ -30,7 +30,8 @@
 
 -record(state, {
     schemas = [] :: [#schema{}],
-    next_id :: integer()
+    next_id :: integer(),
+    db
 }).
 
 %%%===================================================================
@@ -43,10 +44,10 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link() ->
+-spec(start_link(EnablePersistency :: boolean()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(EnablePersistency) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [EnablePersistency], []).
 
 -spec(stop() -> ok).
 stop() ->
@@ -158,8 +159,15 @@ delete_connection(SchemaId, ConnectionId) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([]) ->
-    %TODO: load from disk
+init([true]) ->
+    {ok, Db} = dets:open_file("ehome_schemas", [
+        {keypos, #schema.id},
+        {type, set}
+    ]),
+    Schemas = dets:traverse(Db, fun read_schema_from_db/1),
+    {ok, #state{next_id = get_last_id(Schemas) + 1, schemas = Schemas,
+        db = Db}};
+init([false]) ->
     {ok, #state{next_id = 1}}.
 
 %%--------------------------------------------------------------------
@@ -249,7 +257,10 @@ handle_info(_Info, State) ->
 %%--------------------------------------------------------------------
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
         State :: #state{}) -> term()).
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{db = undefined}) ->
+    ok;
+terminate(_Reason, #state{db = Db}) ->
+    ok = dets:close(Db),
     ok.
 
 %%--------------------------------------------------------------------
@@ -270,22 +281,35 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+insert_db(_Schema, #state{db = undefined}) ->
+    ok;
+insert_db(Schema, #state{db = Db}) ->
+    ok = dets:insert(Db, Schema).
+
+delete_db(_Id, #state{db = undefined}) ->
+    ok;
+delete_db(Id, #state{db = Db}) ->
+    ok = dets:delete(Db, Id).
+
 add_schema(Schema, #state{next_id = Id, schemas = Schemas} = State) ->
     NewSchema = Schema#schema{id = Id},
+    insert_db(NewSchema, State),
     {Id, State#state{next_id = Id + 1, schemas = [NewSchema | Schemas]}}.
 
 get_schema(Id, Schemas) ->
     lists:keyfind(Id, #schema.id, Schemas).
 
-update_schema_impl(#schema{id = Id} = Schema, #state{schemas = Schemas} =
-    State) ->
+update_schema_impl(#schema{id = Id} = Schema,
+        #state{schemas = Schemas} = State) ->
     NewSchemas = lists:keyreplace(Id, #schema.id, Schemas, Schema),
+    insert_db(Schema, State),
     {true, State#state{schemas = NewSchemas}}.
 
 delete_schema(Id, #state{schemas = Schemas} = State) ->
     case lists:keyfind(Id, #schema.id, Schemas) of
         false -> {false, State};
         Schema ->
+            delete_db(Id, State),
             notify_schema_deletion(Schema),
             {true, State#state{schemas = lists:keydelete(Id, #schema.id, Schemas)}}
     end.
@@ -306,9 +330,12 @@ create_sub(SchemaId, #state{next_id = Id} = State,
         Modifier, SubFactory) ->
     NewSub = SubFactory(Id),
     Modifier(SchemaId, fun(Subs) ->
-        gen_event:notify(change_notif, {create, NewSub}),
+        notify_sub_creation(NewSub),
         {Id, [NewSub | Subs]}
     end, State#state{next_id = Id + 1}).
+
+notify_sub_creation(Sub) ->
+    gen_event:notify(change_notif, {create, Sub}).
 
 update_sub(SchemaId, SubId, Sub, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
@@ -327,12 +354,14 @@ delete_sub(SchemaId, SubId, State, Modifier) ->
         end
     end, State).
 
-modify_schema(SchemaId, Fun, #state{schemas = Schemas} = State) ->
+modify_schema(SchemaId, Fun,
+        #state{schemas = Schemas} = State) ->
     case lists:keyfind(SchemaId, #schema.id, Schemas) of
         false ->
             {false, State};
         Schema ->
             {Ret, NewSchema} = Fun(Schema),
+            insert_db(NewSchema, State),
             {Ret, State#state{
                 schemas = lists:keyreplace(SchemaId, #schema.id, Schemas,
                     NewSchema)
@@ -351,6 +380,30 @@ modify_schema_connections(SchemaId, Fun, State) ->
         {Ret, Schema#schema{connections = NewConnections}}
     end, State).
 
+read_schema_from_db(
+        #schema{elements = Elements, connections = Connections} = Schema) ->
+    io:format("~p~n", [Schema]),
+    lists:foreach(fun notify_sub_creation/1, Elements),
+    lists:foreach(fun notify_sub_creation/1, Connections),
+    {continue, Schema}.
+
+get_last_id(Schemas) ->
+    get_last_id(Schemas, 1).
+
+get_last_id([], Last) ->
+    Last;
+get_last_id(
+        [#schema{id = Id, elements = Elements, connections = Connections} | Rest],
+        Last) ->
+    Last2 = get_last_id(Elements, max(Id, Last)),
+    Last3 = get_last_id(Connections, Last2),
+    get_last_id(Rest, Last3);
+get_last_id([#element{id = Id} | Rest], Last) ->
+    get_last_id(Rest, max(Id, Last));
+get_last_id([#connection{id = Id} | Rest], Last) ->
+    get_last_id(Rest, max(Id, Last)).
+
+
 %%%===================================================================
 %%% Tests
 %%%===================================================================
@@ -367,7 +420,7 @@ add_schema_test() ->
     {NextId, ExpectedState} = add_schema(Schema, State).
 
 schema_test() ->
-    {ok, _PId} = start_link(),
+    {ok, _PId} = start_link(false),
     [] = get_schemas(),
     Schema = #schema{name = "toto"},
     1 = Id = create_schema(Schema),
@@ -385,7 +438,7 @@ schema_test() ->
 
 element_test() ->
     {ok, _PId} = gen_event:start_link({local, change_notif}),
-    {ok, _PId2} = start_link(),
+    {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
     Element = #element{type = "test"},
@@ -413,7 +466,7 @@ element_test() ->
 
 connection_test() ->
     {ok, _PId} = gen_event:start_link({local, change_notif}),
-    {ok, _PId2} = start_link(),
+    {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
     Connection = #connection{source_id = 1, source_output = 1, target_id = 1,

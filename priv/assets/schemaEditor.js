@@ -271,7 +271,10 @@ function handleNotif(graph, paper, message) {
     if(message.type == 'relay' || message.type == 'switch') {
         cell = graph.getCell(graphId(message.id));
     } else if(message.type == 'connection' && graph.connectionStore) {
-        cell = graph.connectionStore.getById(message.id).graphLink;
+        var element = graph.connectionStore.getById(message.id);
+        if(element) {
+            cell = graph.connectionStore.getById(message.id).graphLink;
+        }
     }
 
     if(cell) {
