@@ -1,4 +1,4 @@
-joint.shapes.logic.Timer = joint.shapes.logic.IO.extend({
+joint.shapes.logic.Box21 = joint.shapes.logic.IO.extend({
     markup: '<g class="rotatable"><g class="scalable"><rect class="body"/></g>'+
            '<circle class="input input1"/>'+
            '<circle  class="input input2"/><circle class="output"/>'+
@@ -22,11 +22,21 @@ joint.shapes.logic.Timer = joint.shapes.logic.IO.extend({
                          magnet: 'passive', port: 'in2' },
             '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
                          magnet: true, port: 'out1' },
-            text: {text: 'start\nreset', 'ref-x': 0, 'text-anchor': 'left'}
+            text: {'text-transform': 'none', 'ref-x': 0, 'text-anchor': 'left'}
         }
     }, joint.shapes.logic.IO.prototype.defaults)
 });
 
+function createBox21Class(type, text) {
+    joint.shapes.logic[type] = joint.shapes.logic.Box21.extend({
+        defaults: joint.util.deepSupplement({
+            type: 'logic.' + type,
+            attrs: {
+                text: {text: text}
+            }
+        }, joint.shapes.logic.Box21.prototype.defaults)
+    })
+}
 joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
     markup: '<g class="rotatable"><g class="scalable"><rect class="body"/></g>'+
            '<circle class="input"/>'+
@@ -51,7 +61,7 @@ joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
     }, joint.shapes.logic.IO.prototype.defaults)
 });
 
-function createEdgeClass(type, text) {
+function createBox11Class(type, text) {
     joint.shapes.logic[type] = joint.shapes.logic.Box11.extend({
         defaults: joint.util.deepSupplement({
             type: 'logic.' + type,
@@ -62,9 +72,11 @@ function createEdgeClass(type, text) {
     })
 }
 
-createEdgeClass('UpEdge', 'up edge');
-createEdgeClass('DownEdge', 'down edge');
-createEdgeClass('BothEdge', 'both edge');
+createBox21Class('Timer', 'start\nreset');
+createBox21Class('DFlipFlop', 'D\nclock');
+createBox11Class('UpEdge', 'up edge');
+createBox11Class('DownEdge', 'down edge');
+createBox11Class('BothEdge', 'both edge');
 
 var TYPE2SHAPE = {
     'switch': joint.shapes.logic.Input,
@@ -74,6 +86,7 @@ var TYPE2SHAPE = {
     xor: joint.shapes.logic.Xor,
     not: joint.shapes.logic.Not,
     timer: joint.shapes.logic.Timer,
+    d_flipflop: joint.shapes.logic.DFlipFlop,
     up_edge: joint.shapes.logic.UpEdge,
     down_edge: joint.shapes.logic.DownEdge,
     both_edge: joint.shapes.logic.BothEdge
