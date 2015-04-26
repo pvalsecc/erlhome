@@ -41,7 +41,7 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(register(GenEvent :: pid(), Module :: atom(), Target :: pid()) -> ok).
+-spec(register(GenEvent :: pid() | atom(), Module :: atom(), Target :: pid()) -> ok).
 register(GenEvent, Module, Target) ->
     gen_event:add_sup_handler(GenEvent, ?MODULE, {Module, Target}).
 

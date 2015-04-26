@@ -18,7 +18,7 @@
 
 -record(state, {
     delay = 2000 :: non_neg_integer(),
-    waiting = false :: false | pid()
+    waiting = false :: false | timer:tref()
 }).
 
 -spec(start_link(Id :: integer(), Delay :: non_neg_integer()) ->

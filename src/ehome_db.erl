@@ -59,7 +59,7 @@ stop() ->
 get_schemas() ->
     gen_server:call(?SERVER, {get_schemas}).
 
--spec(get_schema(SchemaId :: integer()) -> #schema{}).
+-spec(get_schema(SchemaId :: integer()) -> #schema{} | false).
 get_schema(SchemaId) ->
     gen_server:call(?SERVER, {get_schema, SchemaId}).
 
@@ -79,7 +79,8 @@ delete_schema(SchemaId) ->
 
 %% Elements
 
--spec(get_element(SchemaId :: integer(), ElementId :: integer()) -> #element{}).
+-spec(get_element(SchemaId :: integer(), ElementId :: integer()) ->
+    #element{} | false).
 get_element(SchemaId, ElementId) ->
     gen_server:call(?SERVER,
         {get_sub, SchemaId, ElementId, fun modify_schema_elements/3}).
@@ -109,7 +110,7 @@ delete_element(SchemaId, ElementId) ->
 %% Connections
 
 -spec(get_connection(SchemaId :: integer(), ConnectionId :: integer()) ->
-    #connection{}).
+    #connection{} | false).
 get_connection(SchemaId, ConnectionId) ->
     gen_server:call(?SERVER,
         {get_sub, SchemaId, ConnectionId,
@@ -441,7 +442,7 @@ element_test() ->
     {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
-    Element = #element{type = "test"},
+    Element = #element{type = <<"test">>},
 
     ElementId = create_element(SchemaId, Element),
     Element2 = Element#element{id = ElementId},
@@ -451,7 +452,7 @@ element_test() ->
     },
     Schema2 = get_schema(SchemaId),
 
-    Element3 = Element2#element{type = "test2"},
+    Element3 = Element2#element{type = <<"test2">>},
     true = update_element(SchemaId, ElementId, Element3),
     Schema3 = Schema2#schema{elements = [Element3]},
     Schema3 = get_schema(SchemaId),

@@ -21,7 +21,7 @@
 -record(element_mapping, {id :: integer(), pid :: pid()}).
 
 -record(state, {
-    elements = [] :: #element_mapping{}
+    elements = [] :: [#element_mapping{}]
 }).
 
 -include("ehome_types.hrl").

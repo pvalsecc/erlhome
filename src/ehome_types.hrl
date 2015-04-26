@@ -32,7 +32,7 @@
 
 -record(schema, {
     id :: integer(),
-    name :: binary(),
+    name :: binary() | string(),
     elements = [] :: [#element{}],
     connections = [] :: [#connection{}]
 }).

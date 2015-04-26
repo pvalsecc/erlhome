@@ -25,7 +25,7 @@
 start_link(Id) ->
     ehome_element:start_link(Id, ehome_switch, 0, 1, Id).
 
--spec(switch(Gate :: pid, Value :: boolean()) -> ok).
+-spec(switch(Gate :: pid(), Value :: boolean()) -> ok).
 switch(Gate, Value) ->
     ehome_element:new_outputs(Gate, [Value]).
 

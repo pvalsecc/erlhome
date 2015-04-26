@@ -13,7 +13,7 @@
 
 -behaviour(gen_server).
 
--callback init(Args :: list()) -> {Outputs :: [], State :: any()}.
+-callback init(Args :: any()) -> {Outputs :: [boolean()], State :: any()}.
 
 -callback new_inputs(Inputs :: [boolean()], OldOutputs :: list(boolean()),
                      State :: any()) ->
