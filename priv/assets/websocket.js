@@ -60,5 +60,3 @@ Ext.define('MyWebSocket', {
         }
     }
 });
-
-var notifs = new MyWebSocket({url: 'ws://' + window.location.host + '/notifs'});
