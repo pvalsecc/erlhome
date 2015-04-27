@@ -182,20 +182,17 @@ function updateConnection(graph, link) {
     link.attributes.con.graphLink = link;
 }
 
-function removeConnection(graph, link) {
+function removeItem(graph, item) {
     if(!graph.connectionStore) return;   //don't remove when switching schema
-    var target = link.attributes.target;
-    if(!target || !target.id || !link.attributes.con) return; //not yet connected
-    link.attributes.con.drop();
-}
-
-function commitSchemaChanges(graph) {
-    if(graph.elementStore) {
-        graph.elementStore.sync();
+    if(item.isLink()) {
+        var target = item.attributes.target;
+        if(!target || !target.id || !item.attributes.con) return; //not yet connected
+        item.attributes.con.drop();
+    } else {
+        if(!item.attributes.element) return;
+        item.attributes.element.drop();
     }
-    if(graph.connectionStore) {
-        graph.connectionStore.sync();
-    }
+    //graph.commitChanges called by batch:stop
 }
 
 function createSchemaToolbarHandler(graph, type) {
@@ -280,6 +277,7 @@ function displayTimerForm(graph, element) {
                 var values = form.getForm().getFieldValues();
                 element.set('config', values);
                 graph.elementStore.sync();
+                graph.commitChanges()
                 form.close();
             }
         }]
@@ -308,6 +306,14 @@ function createSchema(name, grid) {
     var graph = new joint.dia.Graph;
     graph.statusCache = {};
 
+    var delay = new Ext.util.DelayedTask(function(){
+        if(graph.elementStore) graph.elementStore.sync();
+        if(graph.connectionStore) graph.connectionStore.sync();
+    });
+    graph.commitChanges = function() {
+        delay.delay(200);
+    }
+
     var toolbar = createSchemaToolbar(graph);
     toolbar.disable();
 
@@ -335,20 +341,18 @@ function createSchema(name, grid) {
         }
     );
 
-    var batches = 0;
     graph.on('change:position', updateElementPosition);
     graph.on('change:source', function(link) {updateConnection(graph, link);});
     graph.on('change:target', function(link) {updateConnection(graph, link);});
     graph.on('change:vertices', function(link) {updateConnection(graph, link);});
-    graph.on('remove', function(link) {removeConnection(graph, link);});
-    graph.on('batch:start', function() {batches++;});
+    graph.on('remove', function(link) {removeItem(graph, link);});
     graph.on('batch:stop', function() {
-        if(--batches == 0) commitSchemaChanges(graph);
+        graph.commitChanges();
     });
 
     return {
         region: 'center',
-        html : '<div id="paper" class="paper" style="width: 100%; height: 100%"/>',
+        html : '<div id="paper" class="paper" style="width: 100%; height: 100%" oncontextmenu="return false;"/>',
         dockedItems: [toolbar],
         listeners: {
             afterlayout: function() {
@@ -389,6 +393,11 @@ function createSchema(name, grid) {
                 });
                 paper.on('cell:pointerclick', function(cell) {
                     handleClick(graph, cell);
+                });
+                paper.on('cell:pointerup', function(cell, event) {
+                    if(event.button >= 2 && !cell.model.isLink()) {
+                        cell.model.remove();  //will notify removeItem
+                    }
                 });
             }
         }
