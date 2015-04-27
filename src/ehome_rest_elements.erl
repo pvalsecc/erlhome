@@ -36,11 +36,16 @@ subId2Url(SchemaId, SubId) ->
     StrSubId = ehome_utils:id2str(SubId),
     <<"/schemas/", StrSchemaId/bytes, "/elements/", StrSubId/bytes>>.
 
-sub2json(SchemaId, #element{id = Id, type = Type, x = X, y = Y}) ->
+sub2json(SchemaId, #element{id = Id, type = Type, x = X, y = Y,
+                            config = Config}) ->
     Href = subId2Url(SchemaId, Id),
-    #{id =>Id, type => Type, x => X, y => Y, href => Href}.
+    #{id =>Id, type => Type, x => X, y => Y, href => Href, config => Config}.
 
 json2sub(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),
-    #{<<"type">> := Type, <<"x">> := X, <<"y">> := Y } = Decoded,
-    #element{type = Type, x = X, y = Y}.
+    #{<<"type">> := Type, <<"x">> := X, <<"y">> := Y} = Decoded,
+    Config = case Decoded of
+        #{<<"config">> := Conf} -> Conf;
+        _ -> #{}
+    end,
+    #element{type = Type, x = X, y = Y, config = Config}.
