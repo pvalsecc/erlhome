@@ -11,7 +11,7 @@
 -record(element, {
     id :: integer(),
     type :: binary(),
-    config :: map(),
+    config = #{} :: map(),
     x :: integer(),
     y :: integer()
 }).

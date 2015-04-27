@@ -196,8 +196,9 @@ get_start_func(#element{id = Id, type = <<"both_edge">>}) ->
     {ehome_edge_gate, both_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"d_flipflop">>}) ->
     {ehome_d_flipflop, start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"timer">>}) ->
-    {ehome_timer_gate, start_link, [Id, 2000]}.  %TODO: make configurable
+get_start_func(#element{id = Id, type = <<"timer">>,
+    config = Config}) ->
+    {ehome_timer_gate, start_link, [Id, Config]}.
 
 pid_from_id(Id, #state{elements = Elements}) ->
     case lists:keyfind(Id, #element_mapping.id, Elements) of
@@ -217,6 +218,17 @@ handle_event_impl({create, #element{id = Id} = Element}, State) ->
     {Module, Fun, Args} = get_start_func(Element),
     {ok, Pid} = apply(Module, Fun, Args),
     add_id(Id, Pid, State);
+
+handle_event_impl(
+    {update, #element{config = Config}, #element{config = Config}}, State) ->
+    %No config change, nothing to do
+    State;
+
+handle_event_impl(
+    {update, #element{id = Id, config = NewConfig}, _OldElement}, State) ->
+    Pid = pid_from_id(Id, State),
+    ehome_element:update_config(Pid, NewConfig),
+    State;
 
 handle_event_impl({delete, #element{id = Id}}, State) ->
     Pid = pid_from_id(Id, State),

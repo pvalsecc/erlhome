@@ -14,20 +14,22 @@
 %% API
 -export([start_link/2]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, iterate_status/3, control/3, update_config/2]).
 
 -record(state, {
     delay = 2000 :: non_neg_integer(),
     waiting = false :: false | timer:tref()
 }).
 
--spec(start_link(Id :: integer(), Delay :: non_neg_integer()) ->
+-spec(start_link(Id :: integer(), Config :: map()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Id, Delay) ->
-    ehome_element:start_link(Id, ?MODULE, 2, 1, Delay).
+start_link(Id, Config) ->
+    ehome_element:start_link(Id, ?MODULE, 2, 1, Config).
 
-init(Delay) ->
-    {[false], #state{delay = Delay}}.
+init(#{<<"delay">> := Delay}) ->
+    {[false], #state{delay = Delay}};
+init(_) ->
+    {[false], #state{delay = 2000}}.
 
 new_inputs([false, false], _OldOutputs, State) ->
     State;
@@ -61,6 +63,11 @@ control(Type, Message, _Inner) ->
         [Type, Message]),
     false.
 
+update_config(#{<<"delay">> := Delay}, State) ->
+    State#state{delay = Delay};
+update_config(_Config, State) ->
+    State.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 maybe_cancel(false) ->
@@ -78,7 +85,7 @@ maybe_cancel(TRef) ->
 -define(MARGIN, 10).
 
 nominal_test() ->
-    {ok, Timer} = start_link(1, ?DELAY),
+    {ok, Timer} = start_link(1, #{<<"delay">> => ?DELAY}),
     ehome_element:set_input(Timer, 1, true),
     test_utils:wait_queue_empty(Timer),
     [false] = ehome_element:get_outputs(Timer),
@@ -95,7 +102,7 @@ nominal_test() ->
     [false] = ehome_element:get_outputs(Timer).
 
 reset_before_trigger_test() ->
-    {ok, Timer} = start_link(1, ?DELAY),
+    {ok, Timer} = start_link(1, #{<<"delay">> => ?DELAY}),
     ehome_element:set_input(Timer, 1, true),
     ehome_element:set_input(Timer, 1, false),
     test_utils:wait_queue_empty(Timer),

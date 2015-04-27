@@ -13,10 +13,10 @@
 
 %% API
 -export([and_start_link/1, or_start_link/1, xor_start_link/1,
-    iterate_status/3, control/3]).
+    iterate_status/3]).
 
 %% ehome_element callbacks
--export([init/1, new_inputs/3]).
+-export([init/1, new_inputs/3, control/3, update_config/2]).
 
 -record(state, {
     function :: fun((boolean(), boolean()) -> boolean)
@@ -53,6 +53,9 @@ control(Type, Message, _Inner) ->
     io:format("ehome_21_gate: un-supported message ~p/~p~n",
         [Type, Message]),
     false.
+
+update_config(_Config, State) ->
+    State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

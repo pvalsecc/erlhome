@@ -14,7 +14,7 @@
 %% API
 -export([up_start_link/1, down_start_link/1, both_start_link/1]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, iterate_status/3, control/3, update_config/2]).
 
 -record(state, {
     trigger :: up|down|both
@@ -62,6 +62,9 @@ control(Type, Message, _Inner) ->
         [Type, Message]),
     false.
 
+update_config(_Config, State) ->
+    State.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 is_edge(Input, #state{trigger = up}) ->
@@ -82,7 +85,7 @@ is_edge(_Input, #state{trigger = both}) ->
 up_test() ->
     {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, Up} = up_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, 0),
+    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Up, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Up, Memory]),
     [false] = ehome_element:get_outputs(Up),
@@ -99,7 +102,7 @@ up_test() ->
 down_test() ->
     {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, Down} = down_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, 0),
+    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Down, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Down, Memory]),
     [false] = ehome_element:get_outputs(Down),
@@ -121,7 +124,7 @@ down_test() ->
 both_test() ->
     {ok, Events} = gen_event:start_link({local, status_notif}),
     {ok, Both} = both_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, 0),
+    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Both, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Both, Memory]),
     [false] = ehome_element:get_outputs(Both),

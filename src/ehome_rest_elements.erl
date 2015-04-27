@@ -45,6 +45,8 @@ json2sub(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),
     #{<<"type">> := Type, <<"x">> := X, <<"y">> := Y} = Decoded,
     Config = case Decoded of
+        #{<<"config">> := null} -> #{};
+        #{<<"config">> := undefined} -> #{};
         #{<<"config">> := Conf} -> Conf;
         _ -> #{}
     end,

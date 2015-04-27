@@ -16,7 +16,7 @@
 %% API
 -export([start_link/1, control/3]).
 
--export([init/1, new_inputs/3, iterate_status/3]).
+-export([init/1, new_inputs/3, iterate_status/3, update_config/2]).
 
 -record(state, {
     status = false :: boolean(),
@@ -43,3 +43,6 @@ control(Type, Message, _Inner) ->
 
 create_notif(Id, Status) ->
     #notif{type = relay, id = Id, value = Status}.
+
+update_config(_Config, State) ->
+    State.

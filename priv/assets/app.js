@@ -42,7 +42,8 @@ Ext.define('Element', {
         {name: 'id', type: 'int'},
         'type',
         {name: 'x', type: 'int'},
-        {name: 'y', type: 'int'}
+        {name: 'y', type: 'int'},
+        'config'
     ]
 });
 

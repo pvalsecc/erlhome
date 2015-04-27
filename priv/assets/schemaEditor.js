@@ -258,8 +258,37 @@ function handleNotif(graph, paper, message) {
     }
 }
 
+function displayTimerForm(graph, element) {
+    var form = new Ext.form.Panel({
+        title: 'Timer params',
+        defaults: {
+            padding: 10,
+        },
+        floating: true,
+        draggable: true,
+        closable: true,
+        defaultType: 'numberfield',
+        items: [{
+            fieldLabel: 'Delay [ms]',
+            name: 'delay',
+            minValue: 0
+        }],
+        buttons: [{
+            text: 'Save',
+            handler: function() {
+                var form = this.up('form');
+                var values = form.getForm().getFieldValues();
+                element.set('config', values);
+                graph.elementStore.sync();
+                form.close();
+            }
+        }]
+    });
+    form.getForm().setValues(element.get("config") || {});
+    form.show();
+}
+
 function handleClick(graph, cell) {
-    console.log(cell);
     var element = cell.model.attributes.element;
     if(!element) return;
     var type = element.get("type");
@@ -270,8 +299,8 @@ function handleClick(graph, cell) {
             headers: {'Content-Type': 'application/json'},
             jsonData: true
         });
-        //TODO: send message to server
-        console.log('toggle '+element.get('id'));
+    } if(type == 'timer') {
+        displayTimerForm(graph, element);
     }
 }
 
