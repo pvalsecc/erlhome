@@ -112,6 +112,17 @@ function createCell(model) {
     });
 }
 
+function createWire(model) {
+    return model.graphLink = new joint.shapes.logic.Wire({
+        source: { id: graphId(model.get('source_id')),
+                  port: 'out' + model.get('source_output') },
+        target: { id: graphId(model.get('target_id')),
+                  port: 'in' + model.get('target_input') },
+        vertices: model.get('vertices') || [],
+        con: model
+    });
+}
+
 function loadGraph(graph, schema) {
     if(!schema) {
         return;
@@ -127,16 +138,7 @@ function loadGraph(graph, schema) {
 
             graph.connectionStore.load({
                 callback: function(records, operation, success) {
-                    var wires = records.map(function(model) {
-                        return model.graphLink = new joint.shapes.logic.Wire({
-                            source: { id: graphId(model.get('source_id')),
-                                      port: 'out' + model.get('source_output') },
-                            target: { id: graphId(model.get('target_id')),
-                                      port: 'in' + model.get('target_input') },
-                            vertices: model.get('vertices') || [],
-                            con: model
-                        });
-                    });
+                    var wires = records.map(createWire);
                     graph.resetCells(nodes.concat(wires));
                     replayStatusCache(graph);
                 }
@@ -280,8 +282,7 @@ function createSchema(name, grid) {
     var toolbar = createSchemaToolbar(graph);
     toolbar.disable();
 
-    grid.getSelectionModel().on('selectionchange',
-        function(selModel, selections)  {
+    function newGraph(selections) {
             delete graph.elementStore;
             delete graph.connectionStore;
             graph.clear();
@@ -292,6 +293,16 @@ function createSchema(name, grid) {
             } else {
                 toolbar.disable();
             }
+    }
+
+    grid.getSelectionModel().on('selectionchange',
+        function(selModel, selections)  {
+            newGraph(selections);
+        }
+    );
+    grid.getStore().on('write',
+        function(store, operation) {
+            newGraph(operation.getRecords());
         }
     );
 

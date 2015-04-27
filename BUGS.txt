@@ -4,5 +4,3 @@ Web interface
 =============
 
 - A browser window resize screw up the schema editor (no more notif refresh).
-
-- Have to refresh the browser after creating a schema to be able to edit it.

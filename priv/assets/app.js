@@ -123,17 +123,6 @@ function createSchemasGrid() {
                 if (context.record.phantom) {
                     schemasStore.remove(context.record);
                 }
-            },
-
-            edit: function(editor, context) {
-                if(context.record.phantom) {
-                    new Ext.util.DelayedTask(function() {
-                        //deselect to force the user to reselect. Needed to be done later
-                        //to work around a bug in EXT.
-                        context.grid.getSelectionModel().deselectAll();
-                        context.grid.getView().refresh();
-                    }).delay(10);
-                }
             }
         }
     });

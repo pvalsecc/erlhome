@@ -300,11 +300,16 @@ add_schema(Schema, #state{next_id = Id, schemas = Schemas} = State) ->
 get_schema(Id, Schemas) ->
     lists:keyfind(Id, #schema.id, Schemas).
 
-update_schema_impl(#schema{id = Id} = Schema,
+update_schema_impl(#schema{id = Id, name = Name},
         #state{schemas = Schemas} = State) ->
-    NewSchemas = lists:keyreplace(Id, #schema.id, Schemas, Schema),
-    insert_db(Schema, State),
-    {true, State#state{schemas = NewSchemas}}.
+    case lists:keyfind(Id, #schema.id, Schemas) of
+        false -> {false, State};
+        OldSchema ->
+            NewSchema = OldSchema#schema{name = Name},
+            NewSchemas = lists:keyreplace(Id, #schema.id, Schemas, NewSchema),
+            insert_db(NewSchema, State),
+            {true, State#state{schemas = NewSchemas}}
+    end.
 
 delete_schema(Id, #state{schemas = Schemas} = State) ->
     case lists:keyfind(Id, #schema.id, Schemas) of
