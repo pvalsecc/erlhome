@@ -63,14 +63,31 @@ Ext.define('Schema', {
     fields: [
         {name: 'id', type: 'int'},
         'name',
-        'href',
-        'connections', //{name: 'connections', defaultValue: []},
-        'elements', //{name: 'elements', defaultValue: []}
+        'href'
     ],
     validators: {
         name: 'presence'
     }
 });
+
+function createSubStore(model, urlPostfix, schemaId) {
+    return Ext.create('Ext.data.Store', {
+        model: model,
+        proxy: {
+            type: 'rest',
+            url: "/schemas/" + schemaId + '/' + urlPostfix,
+            reader: {
+                type: 'json'
+            },
+            writer: {
+                type: 'json',
+                writeRecordId: false,
+                writeAllFields: true
+            }
+        },
+        autoSync: false
+    });
+}
 
 function createSchemasStore() {
     var store = new Ext.data.Store({

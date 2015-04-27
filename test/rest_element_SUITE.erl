@@ -40,7 +40,7 @@ create(Config) ->
 
     Url2 = UrlSchema ++ "/elements/3",
     Url2 = create_element(UrlSchema, "element2"),
-    #{elements := Elements} = rest_utils:get_json(UrlSchema),
+    Elements = rest_utils:get_json(UrlSchema ++ "/elements"),
     [#{type := Type1}, #{type := Type2}] = Elements,
     true = sets:from_list([Type1, Type2]) ==
         sets:from_list(["element1", "element2"]).
@@ -50,7 +50,7 @@ delete(Config) ->
     Url = create_element(UrlSchema, "element1"),
     rest_utils:delete_url(Url),
     rest_utils:get_json_fail(Url),
-    #{elements := []} = rest_utils:get_json(UrlSchema).
+    [] = rest_utils:get_json(UrlSchema ++ "/elements").
 
 update(Config) ->
     UrlSchema = get_schema_url(Config),

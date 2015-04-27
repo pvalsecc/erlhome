@@ -117,64 +117,32 @@ function loadGraph(graph, schema) {
         return;
     }
 
-    graph.elementStore = Ext.create('Ext.data.Store', {
-        model: 'Element',
-        proxy: {
-            type: 'rest',
-            url: "/schemas/" + schema.getId() + '/elements',
-            reader: {
-                type: 'json'
-            },
-            writer: {
-                type: 'json',
-                writeRecordId: false,
-                writeAllFields: true
-            }
-        },
-        autoSync: false
+    graph.elementStore = createSubStore('Element', 'elements', schema.get('id'));
+    graph.connectionStore =
+        createSubStore('Connection', 'connections', schema.get('id'));
+
+    graph.elementStore.load({
+        callback: function(records, operation, success) {
+            var nodes = records.map(createCell);
+
+            graph.connectionStore.load({
+                callback: function(records, operation, success) {
+                    var wires = records.map(function(model) {
+                        return model.graphLink = new joint.shapes.logic.Wire({
+                            source: { id: graphId(model.get('source_id')),
+                                      port: 'out' + model.get('source_output') },
+                            target: { id: graphId(model.get('target_id')),
+                                      port: 'in' + model.get('target_input') },
+                            vertices: model.get('vertices') || [],
+                            con: model
+                        });
+                    });
+                    graph.resetCells(nodes.concat(wires));
+                    replayStatusCache(graph);
+                }
+            });
+        }
     });
-
-    graph.connectionStore = Ext.create('Ext.data.Store', {
-        model: 'Connection',
-        proxy: {
-            type: 'rest',
-            url: "/schemas/" + schema.getId() + '/connections',
-            reader: {
-                type: 'json'
-            },
-            writer: {
-                type: 'json',
-                writeRecordId: false,
-                writeAllFields: true
-            }
-        },
-        autoSync: false
-    });
-
-    var elements = schema.get('elements') || [];
-
-    var nodes = elements.map(function(element) {
-        var model = graph.elementStore.add(element)[0];
-        model.commit();  //tell EXT this guy is in sync with the server
-        return createCell(model);
-    });
-
-    var connections = schema.get('connections') || [];
-    var wires = connections.map(function(con) {
-        var model = graph.connectionStore.add(con)[0];
-        model.commit();  //tell EXT this guy is in sync with the server
-        return model.graphLink = new joint.shapes.logic.Wire({
-            source: { id: graphId(con.source_id),
-                      port: 'out' + con.source_output },
-            target: { id: graphId(con.target_id),
-                      port: 'in' + con.target_input },
-            vertices: con.vertices || [],
-            con: model
-        });
-    });
-
-    graph.resetCells(nodes.concat(wires));
-    replayStatusCache(graph);
 }
 
 function updateElementPosition(cell) {
@@ -256,15 +224,6 @@ function createSchemaToolbar(graph) {
     });
 }
 
-function saveSchema(schema, elementStore, connectionStore) {
-    if(elementStore) {
-        schema.data.elements = elementStore.data.items.map(function(x) {return x.data;});
-    }
-    if(connectionStore) {
-        schema.data.connections = connectionStore.data.items.map(function(x) {return x.data;});
-    }
-}
-
 function updateStatusCache(graph, message) {
     graph.statusCache[message.id] = message;
 }
@@ -298,6 +257,7 @@ function handleNotif(graph, paper, message) {
 }
 
 function handleClick(graph, cell) {
+    console.log(cell);
     var element = cell.model.attributes.element;
     if(!element) return;
     var type = element.get("type");
@@ -320,16 +280,13 @@ function createSchema(name, grid) {
     var toolbar = createSchemaToolbar(graph);
     toolbar.disable();
 
-    var prevSchema = undefined;
     grid.getSelectionModel().on('selectionchange',
         function(selModel, selections)  {
-            if(prevSchema) saveSchema(prevSchema, graph.elementStore, graph.connectionStore);
             delete graph.elementStore;
             delete graph.connectionStore;
             graph.clear();
 
             if(selections.length > 0 && !selections[0].phantom) {
-                prevSchema = selections[0];
                 toolbar.enable();
                 loadGraph(graph, selections[0]);
             } else {

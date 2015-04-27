@@ -70,17 +70,9 @@ schemaId2Url(Id) ->
     StrId = ehome_utils:id2str(Id),
     <<"/schemas/", StrId/bits>>.
 
-schema2json(#schema{id = Id, name = Name, elements = Elements,
-                    connections = Connections}) ->
+schema2json(#schema{id = Id, name = Name}) ->
     Href = schemaId2Url(Id),
-    ElementsJson = lists:map(fun(Element) ->
-        ehome_rest_elements:sub2json(Id, Element)
-    end, Elements),
-    ConnectionsJson = lists:map(fun(Connection) ->
-        ehome_rest_connections:sub2json(Id, Connection)
-    end, Connections),
-    #{id => Id, name => Name, elements => ElementsJson,
-      connections => ConnectionsJson, href => Href}.
+    #{id => Id, name => Name, href => Href}.
 
 json2schema(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),

@@ -41,7 +41,7 @@ create(Config) ->
 
     Url2 = UrlSchema ++ "/connections/3",
     Url2 = create_connection(UrlSchema, SourceId, SourceOutput, TargetId, 1),
-    #{connections := Connections} = rest_utils:get_json(UrlSchema),
+    Connections = rest_utils:get_json(UrlSchema ++ "/connections"),
     [#{target_input := Input1}, #{target_input := Input2}] = Connections,
     true = sets:from_list([Input1, Input2]) == sets:from_list([1, 2]).
 
@@ -50,7 +50,7 @@ delete(Config) ->
     Url = create_connection(UrlSchema),
     rest_utils:delete_url(Url),
     rest_utils:get_json_fail(Url),
-    #{connections := []} = rest_utils:get_json(UrlSchema).
+    [] = rest_utils:get_json(UrlSchema ++ "/connections").
 
 update(Config) ->
     UrlSchema = get_schema_url(Config),
