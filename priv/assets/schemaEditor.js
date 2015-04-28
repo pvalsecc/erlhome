@@ -74,6 +74,7 @@ function createBox11Class(type, text) {
 
 createBox21Class('Timer', 'start\nreset');
 createBox21Class('DFlipFlop', 'D\nclock');
+createBox21Class('ForceOff', 'in\noff');
 createBox11Class('UpEdge', 'up edge');
 createBox11Class('DownEdge', 'down edge');
 createBox11Class('BothEdge', 'both edge');
@@ -89,7 +90,8 @@ var TYPE2SHAPE = {
     d_flipflop: joint.shapes.logic.DFlipFlop,
     up_edge: joint.shapes.logic.UpEdge,
     down_edge: joint.shapes.logic.DownEdge,
-    both_edge: joint.shapes.logic.BothEdge
+    both_edge: joint.shapes.logic.BothEdge,
+    force_off: joint.shapes.logic.ForceOff
 };
 
 function graphId(id) {

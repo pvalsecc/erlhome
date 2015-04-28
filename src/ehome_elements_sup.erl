@@ -196,6 +196,8 @@ get_start_func(#element{id = Id, type = <<"both_edge">>}) ->
     {ehome_edge_gate, both_start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"d_flipflop">>}) ->
     {ehome_d_flipflop, start_link, [Id]};
+get_start_func(#element{id = Id, type = <<"force_off">>}) ->
+    {ehome_force_off, start_link, [Id]};
 get_start_func(#element{id = Id, type = <<"timer">>,
     config = Config}) ->
     {ehome_timer_gate, start_link, [Id, Config]}.
