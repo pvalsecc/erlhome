@@ -206,6 +206,7 @@ function createSchemaToolbarHandler(graph, type) {
         graph.elementStore.sync({
             callback: function() {
                 graph.addCell(createCell(model));
+                replayStatusCacheFor(graph, model.get('id'));
             }
         });
     };
@@ -232,9 +233,13 @@ function updateStatusCache(graph, message) {
 function replayStatusCache(graph) {
     if(!graph.paper) return;
     for(var id in graph.statusCache) {
-        var message = graph.statusCache[id];
-        handleNotif(graph, graph.paper, message);
+        replayStatusCacheFor(graph, id);
     }
+}
+
+function replayStatusCacheFor(graph, id) {
+    var message = graph.statusCache[id];
+    if(message) handleNotif(graph, graph.paper, message);
 }
 
 function handleNotif(graph, paper, message) {
