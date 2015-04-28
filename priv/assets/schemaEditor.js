@@ -136,11 +136,11 @@ function loadGraph(graph, schema) {
 
     graph.elementStore.load({
         callback: function(records, operation, success) {
-            var nodes = records.map(createCell);
+            var nodes = success ? records.map(createCell) : [];
 
             graph.connectionStore.load({
                 callback: function(records, operation, success) {
-                    var wires = records.map(createWire);
+                    var wires = success ? records.map(createWire) : [];
                     graph.resetCells(nodes.concat(wires));
                     replayStatusCache(graph);
                 }
