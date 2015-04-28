@@ -14,7 +14,7 @@
 %% API
 -export([start_link/2]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3, update_config/2]).
+-export([init/1, new_inputs/3, iterate_status/3, control/3]).
 
 -record(state, {
     delay = 2000 :: non_neg_integer(),
@@ -58,15 +58,12 @@ new_inputs([_, true], _OldOutputs, #state{waiting = TRef} = State) ->
 iterate_status(_Callback, Acc, _Inner) ->
     Acc.
 
+control(<<"config">>, #{<<"delay">> := Delay}, State) ->
+    State#state{delay = Delay};
 control(Type, Message, _Inner) ->
     io:format("ehome_timer_gate: un-supported message ~p/~p~n",
         [Type, Message]),
     false.
-
-update_config(#{<<"delay">> := Delay}, State) ->
-    State#state{delay = Delay};
-update_config(_Config, State) ->
-    State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

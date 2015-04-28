@@ -12,8 +12,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/1,
-    update_config/2]).
+-export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/1]).
 
 -record(state, {
     value = false :: boolean(),
@@ -38,9 +37,6 @@ control(Type, Message, _Inner) ->
     io:format("ehome_d_flipflop: un-supported message ~p/~p~n",
         [Type, Message]),
     false.
-
-update_config(_Config, State) ->
-    State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

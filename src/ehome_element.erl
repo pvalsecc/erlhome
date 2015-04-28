@@ -24,13 +24,12 @@
         Inner :: any()) -> any().
 
 -callback control(Type :: binary(), Message :: any(), Inner :: any()) ->
-    {NewOutputs :: [boolean()], NewInner :: any()} | false.
-
--callback update_config(Config :: map(), Inner :: any()) -> NewInner :: any().
+    {new_outputs, NewOutputs :: [boolean()], NewInner :: any()} |
+    any()  | false.
 
 %% API
 -export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
-    get_inputs/1, get_outputs/1, stop/1, iterate_status/3, control/3, update_config/2]).
+    get_inputs/1, get_outputs/1, stop/1, iterate_status/3, control/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -101,10 +100,6 @@ iterate_status(Gate, Callback, Acc) ->
 control(Gate, Type, Message) ->
     gen_server:call(Gate, {control, Type, Message}).
 
--spec(update_config(Gate :: pid(), Config :: map()) -> ok).
-update_config(Gate, Config) ->
-    gen_server:cast(Gate, {update_config, Config}).
-
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -162,12 +157,14 @@ handle_call({iterate_status, Callback, Acc}, _From,
 handle_call({control, Type, Message}, _From,
         #state{implementation = Impl, inner_state = Inner} = State) ->
     case Impl:control(Type, Message, Inner) of
-        {NewOutputs, NewInner} ->
+        {new_outputs, NewOutputs, NewInner} ->
             {noreply, NewState} =
                 handle_new_outputs(NewOutputs, NewInner, State),
             {reply, true, NewState};
         false ->
-            {reply, false, State}
+            {reply, false, State};
+        NewInner ->
+            {reply, true, State#state{inner_state = NewInner}}
     end.
 
 
@@ -207,11 +204,6 @@ handle_cast({disconnect, Output, Id},
         replace_list(Connections, Output,
             lists:keydelete(Id, 1,  Cur)),
     {noreply, State#state{output_connections = NewConnections}};
-
-handle_cast({update_config, Config},
-        #state{inner_state = Inner, implementation = Impl} = State) ->
-    NewInner = Impl:update_config(Config, Inner),
-    {noreply, State#state{inner_state = NewInner}};
 
 handle_cast(stop, State) ->
     {stop, normal, State}.

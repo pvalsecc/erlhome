@@ -227,7 +227,7 @@ handle_event_impl(
 handle_event_impl(
     {update, #element{id = Id, config = NewConfig}, _OldElement}, State) ->
     Pid = pid_from_id(Id, State),
-    ehome_element:update_config(Pid, NewConfig),
+    ehome_element:control(Pid, <<"config">>, NewConfig),
     State;
 
 handle_event_impl({delete, #element{id = Id}}, State) ->

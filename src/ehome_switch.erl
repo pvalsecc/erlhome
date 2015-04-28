@@ -16,7 +16,7 @@
 %% API
 -export([start_link/1, switch/2, control/3]).
 
--export([init/1, new_inputs/3, iterate_status/3, update_config/2]).
+-export([init/1, new_inputs/3, iterate_status/3]).
 
 -record(state, {id :: integer(), status = false :: boolean()}).
 
@@ -56,10 +56,7 @@ control(Type, Message, _Inner) ->
 
 new_value(Id, Value, Inner) ->
     gen_event:notify(status_notif, create_notif(Id, Value)),
-    {[Value], Inner#state{status = Value}}.
-
-update_config(_Config, State) ->
-    State.
+    {new_outputs, [Value], Inner#state{status = Value}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

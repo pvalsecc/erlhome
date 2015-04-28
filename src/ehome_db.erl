@@ -261,8 +261,7 @@ handle_info(_Info, State) ->
 terminate(_Reason, #state{db = undefined}) ->
     ok;
 terminate(_Reason, #state{db = Db}) ->
-    ok = dets:close(Db),
-    ok.
+    ok = dets:close(Db).
 
 %%--------------------------------------------------------------------
 %% @private
