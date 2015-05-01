@@ -105,7 +105,7 @@ update_element(SchemaId, ElementId, #element{id = ElementId} = Element) ->
     true|false).
 delete_element(SchemaId, ElementId) ->
     gen_server:call(?SERVER,
-        {delete_sub, SchemaId, ElementId, fun modify_schema_elements/3}).
+        {delete_element, SchemaId, ElementId}).
 
 %% Connections
 
@@ -139,7 +139,7 @@ update_connection(SchemaId, ConnectionId,
     true|false).
 delete_connection(SchemaId, ConnectionId) ->
     gen_server:call(?SERVER,
-        {delete_sub, SchemaId, ConnectionId, fun modify_schema_connections/3}).
+        {delete_connection, SchemaId, ConnectionId}).
 
 
 %%%===================================================================
@@ -209,8 +209,11 @@ handle_call({create_sub, SchemaId, Modifier, SubFactory}, _From,
 handle_call({update_sub, SchemaId, SubId, Sub, Modifier}, _From, State) ->
     {Result, NewState} = update_sub(SchemaId, SubId, Sub, State, Modifier),
     {reply, Result, NewState};
-handle_call({delete_sub, SchemaId, SubId, Modifier}, _From, State) ->
-    {Result, NewState} = delete_sub(SchemaId, SubId, State, Modifier),
+handle_call({delete_element, SchemaId, SubId}, _From, State) ->
+    {Result, NewState} = delete_element(SchemaId, SubId, State),
+    {reply, Result, NewState};
+handle_call({delete_connection, SchemaId, SubId}, _From, State) ->
+    {Result, NewState} = delete_connection(SchemaId, SubId, State),
     {reply, Result, NewState}.
 
 
@@ -349,8 +352,8 @@ update_sub(SchemaId, SubId, Sub, State, Modifier) ->
         {true, lists:keyreplace(SubId, #element.id, Subs, Sub)}
     end, State).
 
-delete_sub(SchemaId, SubId, State, Modifier) ->
-    Modifier(SchemaId, fun(Subs) ->
+delete_connection(SchemaId, SubId, State) ->
+    modify_schema_connections(SchemaId, fun(Subs) ->
         case lists:keyfind(SubId, #element.id, Subs) of
             false -> {false, Subs};
             Sub ->
@@ -358,6 +361,20 @@ delete_sub(SchemaId, SubId, State, Modifier) ->
                 {true, lists:keydelete(SubId, #element.id, Subs)}
         end
     end, State).
+
+delete_element(SchemaId, ElementId, State) ->
+    modify_schema(SchemaId,
+        fun(#schema{elements = Elements, connections = Connections} = Schema) ->
+            case lists:keyfind(ElementId, #element.id, Elements) of
+                false -> {false, Schema};
+                Sub ->
+                    NewCons = del_element_connections(ElementId, Connections),
+                    notify_sub_deletion(Sub),
+                    NewElems = lists:keydelete(ElementId, #element.id, Elements),
+                    {true, Schema#schema{connections = NewCons,
+                                         elements = NewElems}}
+            end
+        end, State).
 
 modify_schema(SchemaId, Fun,
         #state{schemas = Schemas} = State) ->
@@ -387,7 +404,6 @@ modify_schema_connections(SchemaId, Fun, State) ->
 
 read_schema_from_db(
         #schema{elements = Elements, connections = Connections} = Schema) ->
-    io:format("~p~n", [Schema]),
     lists:foreach(fun notify_sub_creation/1, Elements),
     lists:foreach(fun notify_sub_creation/1, Connections),
     {continue, Schema}.
@@ -407,6 +423,19 @@ get_last_id([#element{id = Id} | Rest], Last) ->
     get_last_id(Rest, max(Id, Last));
 get_last_id([#connection{id = Id} | Rest], Last) ->
     get_last_id(Rest, max(Id, Last)).
+
+del_element_connections(_ElementId, []) ->
+    [];
+del_element_connections(ElementId,
+        [#connection{source_id = ElementId} = Con | Rest]) ->
+    notify_sub_deletion(Con),
+    del_element_connections(ElementId, Rest);
+del_element_connections(ElementId,
+        [#connection{target_id = ElementId} = Con | Rest]) ->
+    notify_sub_deletion(Con),
+    del_element_connections(ElementId, Rest);
+del_element_connections(ElementId, [Cur|Rest]) ->
+    [Cur | del_element_connections(ElementId, Rest)].
 
 
 %%%===================================================================
@@ -497,3 +526,26 @@ connection_test() ->
     false = get_connection(SchemaId, ConnectionId),
     stop(),
     gen_event:stop(change_notif).
+
+element_delete_test() ->
+    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    {ok, _PId2} = start_link(false),
+    Schema = #schema{name = "toto"},
+    SchemaId = create_schema(Schema),
+    Element = #element{type = <<"test">>},
+    ElementId1 = create_element(SchemaId, Element),
+    ElementId2 = create_element(SchemaId, Element),
+    ElementId3 = create_element(SchemaId, Element),
+    Connection1 = #connection{source_id = ElementId1, source_output = 1,
+        target_id = ElementId2, target_input = 1},
+    ConnectionId1 = create_connection(SchemaId, Connection1),
+    Connection2 = #connection{source_id = ElementId1, source_output = 1,
+        target_id = ElementId3, target_input = 1},
+    ConnectionId2 = create_connection(SchemaId, Connection2),
+    Connection3 = #connection{source_id = ElementId2, source_output = 1,
+        target_id = ElementId3, target_input = 1},
+    ConnectionId3 = create_connection(SchemaId, Connection3),
+    true = delete_element(SchemaId, ElementId2),
+    false = get_connection(SchemaId, ConnectionId1),
+    #connection{} = get_connection(SchemaId, ConnectionId2),
+    false = get_connection(SchemaId, ConnectionId3).
