@@ -188,7 +188,8 @@ function removeItem(graph, item) {
     if(!graph.connectionStore) return;   //don't remove when switching schema
     if(item.isLink()) {
         var target = item.attributes.target;
-        if(!target || !target.id || !item.attributes.con) return; //not yet connected
+        if(!target || !target.id || !item.attributes.con ||
+           graph.removingElement) return; //not yet connected
         item.attributes.con.drop();
     } else {
         if(!item.attributes.element) return;
@@ -314,8 +315,11 @@ function createSchema(name, grid) {
     graph.statusCache = {};
 
     var delay = new Ext.util.DelayedTask(function(){
-        if(graph.elementStore) graph.elementStore.sync();
-        if(graph.connectionStore) graph.connectionStore.sync();
+        if(graph.elementStore) graph.elementStore.sync({
+            callback: function() {
+                if(graph.connectionStore) graph.connectionStore.sync();
+            }
+        });
     });
     graph.commitChanges = function() {
         delay.delay(200);
@@ -403,7 +407,9 @@ function createSchema(name, grid) {
                 });
                 paper.on('cell:pointerup', function(cell, event) {
                     if(event.button >= 2 && !cell.model.isLink()) {
+                        graph.removingElement = true;
                         cell.model.remove();  //will notify removeItem
+                        graph.removingElement = false;
                     }
                 });
             }
