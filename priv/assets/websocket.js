@@ -10,7 +10,6 @@ Ext.define('MyWebSocket', {
     constructor: function (config) {
         this.mixins.observable.constructor.call(this, config);
         var self = this;
-        this.open();
         this.scheduleRetry();
     },
 
