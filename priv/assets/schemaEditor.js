@@ -333,7 +333,8 @@ function createSchema(name, grid) {
             delete graph.connectionStore;
             graph.clear();
 
-            if(selections.length > 0 && !selections[0].phantom) {
+            if(selections.length > 0 && !selections[0].phantom &&
+               !selections[0].erased) {
                 toolbar.enable();
                 loadGraph(graph, selections[0]);
             } else {
