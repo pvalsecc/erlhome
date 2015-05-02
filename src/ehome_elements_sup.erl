@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, handle_event/2, iterate_status/2, control/3, stop/1]).
+-export([start_link/0, iterate_status/2, control/3, stop/1, handle_event/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -45,13 +45,13 @@ start_link() ->
 iterate_status(Callback, Acc) ->
     gen_server:call(?MODULE, {iterate_status, Callback, Acc}).
 
-handle_event(Sup, Event) ->
-    gen_server:cast(Sup, {handle_event, Event}).
-
 -spec(control(Id :: integer(), Type :: binary(), Message :: any()) ->
     true|false).
 control(Id, Type, Message) ->
     gen_server:call(?MODULE, {control, Id, Type, Message}).
+
+handle_event(Topic, Event) ->
+    gen_server:cast(?MODULE, {handle_event, Topic, Event}).
 
 stop(Sup) ->
     gen_server:cast(Sup, stop).
@@ -76,7 +76,10 @@ stop(Sup) ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     process_flag(trap_exit, true),
-    ehome_event_forwarder:register(change_notif, ?MODULE, self()),
+    Self = self(),
+    ehome_dispatcher:subscribe([db, all], Self, fun(Topic, Event) ->
+        gen_server:cast(Self, {handle_event, Topic, Event})
+    end),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -112,8 +115,8 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({handle_event, Event}, State) ->
-    {noreply, handle_event_impl(Event, State)};
+handle_cast({handle_event, Topic, Event}, State) ->
+    {noreply, handle_event(Topic, Event, State)};
 handle_cast(stop, State) ->
     {stop, normal, State};
 handle_cast(_Request, State) ->
@@ -216,30 +219,30 @@ add_id(Id, Pid, #state{elements = Elements} = State) ->
 remove_id(Id, #state{elements = Elements} = State) ->
     State#state{elements = lists:keydelete(Id, #element_mapping.id, Elements)}.
 
-handle_event_impl({create, #element{id = Id} = Element}, State) ->
+handle_event([db, create, element, _SchemaId, Id], #element{} = Element, State) ->
     {Module, Fun, Args} = get_start_func(Element),
     {ok, Pid} = apply(Module, Fun, Args),
     add_id(Id, Pid, State);
 
-handle_event_impl(
-    {update, #element{config = Config}, #element{config = Config}}, State) ->
+handle_event([db, update, element, _SchemaId, _Id],
+    {#element{config = Config}, #element{config = Config}}, State) ->
     %No config change, nothing to do
     State;
 
-handle_event_impl(
-    {update, #element{id = Id, config = NewConfig}, _OldElement}, State) ->
+handle_event([db, update, element, _SchemaId, Id],
+    {#element{config = NewConfig}, _OldElement}, State) ->
     Pid = pid_from_id(Id, State),
     ehome_element:control(Pid, <<"config">>, NewConfig),
     State;
 
-handle_event_impl({delete, #element{id = Id}}, State) ->
+handle_event([db, delete, element, _SchemaId, Id], #element{}, State) ->
     Pid = pid_from_id(Id, State),
     ehome_element:stop(Pid),
     remove_id(Id, State);
 
-handle_event_impl(
-        {create, #connection{source_id = SourceId, source_output = SourceOutput,
-            target_id = TargetId, target_input = TargetInput, id = Id}},
+handle_event([db, create, connection, _SchemaId, Id],
+        #connection{source_id = SourceId, source_output = SourceOutput,
+                    target_id = TargetId, target_input = TargetInput},
         State) ->
     SourcePid = pid_from_id(SourceId, State),
     TargetPid = pid_from_id(TargetId, State),
@@ -253,8 +256,8 @@ handle_event_impl(
     end,
     State;
 
-handle_event_impl(
-        {delete, #connection{source_id = SourceId, source_output = SourceOutput, id = Id}},
+handle_event([db, delete, connection, _SchemaId, Id],
+        #connection{source_id = SourceId, source_output = SourceOutput},
         State) ->
     SourcePid = pid_from_id(SourceId, State),
     if
@@ -266,15 +269,17 @@ handle_event_impl(
     end,
     State;
 
-handle_event_impl(
-        {update, #connection{} = NewConnection, #connection{} = OldConnection},
+handle_event([db, update, connection, SchemaId, Id],
+        {#connection{} = NewConnection, #connection{} = OldConnection},
         State) ->
-    NewState = handle_event_impl({delete, OldConnection}, State),
-    handle_event_impl({create, NewConnection}, NewState);
+    NewState = handle_event([db, delete, connection, SchemaId, Id],
+        OldConnection, State),
+    handle_event([db, create, connection, SchemaId, Id],
+        NewConnection, NewState);
 
-handle_event_impl(_Event, State) ->
+handle_event(Path, _Event, State) ->
+    io:format("ehome_elements_sup: unknown event: ~p~n", [Path]),
     State.
-
 
 iterate_status(Callback, Acc, #state{elements = Elements}) ->
     iterate_status(Callback, Acc, Elements);

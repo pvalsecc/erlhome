@@ -373,20 +373,17 @@ get_notif_path(Action, SchemaId, #connection{id = Id}) ->
     [db, Action, connection, SchemaId, Id].
 
 notify_sub_creation(SchemaId, Sub) ->
-    ehome_dispatcher:publish(get_notif_path(create, SchemaId, Sub), Sub),
-    gen_event:notify(change_notif, {create, Sub}).
+    ehome_dispatcher:publish(get_notif_path(create, SchemaId, Sub), Sub).
 
 notify_sub_update(SchemaId, Sub, PrevSub) ->
     ehome_dispatcher:publish(get_notif_path(update, SchemaId, Sub),
-                             {Sub, PrevSub}),
-    gen_event:notify(change_notif, {update, Sub, PrevSub}).
+                             {Sub, PrevSub}).
 
 notify_schema_deletion(#schema{id = Id, elements = Elements}) ->
     lists:foreach(fun(E) -> notify_sub_deletion(Id, E) end, Elements).
 
 notify_sub_deletion(SchemaId, Sub) ->
-    ehome_dispatcher:publish(get_notif_path(delete, SchemaId, Sub), Sub),
-    gen_event:notify(change_notif, {delete, Sub}).
+    ehome_dispatcher:publish(get_notif_path(delete, SchemaId, Sub), Sub).
 
 modify_schema(SchemaId, Fun,
         #state{schemas = Schemas} = State) ->
@@ -484,7 +481,7 @@ schema_test() ->
     stop().
 
 element_test() ->
-    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    ehome_dispatcher:start_link(),
     {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
@@ -509,10 +506,10 @@ element_test() ->
     Schema4 = get_schema(SchemaId),
     false = get_element(SchemaId, ElementId),
     stop(),
-    gen_event:stop(change_notif).
+    ehome_dispatcher:stop().
 
 connection_test() ->
-    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    ehome_dispatcher:start_link(),
     {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
@@ -538,10 +535,10 @@ connection_test() ->
     Schema4 = get_schema(SchemaId),
     false = get_connection(SchemaId, ConnectionId),
     stop(),
-    gen_event:stop(change_notif).
+    ehome_dispatcher:stop().
 
 element_delete_test() ->
-    {ok, _PId} = gen_event:start_link({local, change_notif}),
+    ehome_dispatcher:start_link(),
     {ok, _PId2} = start_link(false),
     Schema = #schema{name = "toto"},
     SchemaId = create_schema(Schema),
@@ -561,4 +558,5 @@ element_delete_test() ->
     true = delete_element(SchemaId, ElementId2),
     false = get_connection(SchemaId, ConnectionId1),
     #connection{} = get_connection(SchemaId, ConnectionId2),
-    false = get_connection(SchemaId, ConnectionId3).
+    false = get_connection(SchemaId, ConnectionId3),
+    ehome_dispatcher:stop().

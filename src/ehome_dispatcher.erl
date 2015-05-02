@@ -21,7 +21,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, subscribe/3, publish/2]).
+-export([start_link/0, subscribe/3, publish/2, stop/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -62,15 +62,15 @@ start_link() ->
 -spec(subscribe(Path :: path(), SubscribeId :: any(),
                 Listener :: listener()) -> ok).
 subscribe(Path, SubscribeId, Listener) ->
-    gen_server:cast(?SERVER, {subscribe, Path, SubscribeId, Listener}).
+    gen_server:call(?SERVER, {subscribe, Path, SubscribeId, Listener}).
 
 -spec(unsubscribe(SubscribeId :: any()) -> ok).
 unsubscribe(SubscribeId) ->
-    gen_server:cast(?SERVER, {unsubscribe, SubscribeId}).
+    gen_server:call(?SERVER, {unsubscribe, SubscribeId}).
 
 -spec(publish(Path :: path(), Value :: any()) -> ok).
 publish(Path, Value) ->
-    gen_server:cast(?SERVER, {publish, Path, Value}).
+    gen_server:call(?SERVER, {publish, Path, Value}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -108,6 +108,13 @@ init([]) ->
     {noreply, NewState :: #node{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #node{}} |
     {stop, Reason :: term(), NewState :: #node{}}).
+handle_call({subscribe, Path, SubscribeId, Listener}, _From, State) ->
+    {reply, ok, subscribe(Path, SubscribeId, Listener, State)};
+handle_call({unsubscribe, SubscribeId}, _From, State) ->
+    {reply, ok, unsubscribe(SubscribeId, State)};
+handle_call({publish, Path, Value}, _From, State) ->
+    publish(Path, Value, State),
+    {reply, ok, State};
 handle_call(stop, _From, State) ->  %UTs only
     {stop, normal, ok, State};
 handle_call(sync, _From, State) ->  %UTs only
@@ -124,13 +131,6 @@ handle_call(sync, _From, State) ->  %UTs only
     {noreply, NewState :: #node{}} |
     {noreply, NewState :: #node{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #node{}}).
-handle_cast({subscribe, Path, SubscribeId, Listener}, State) ->
-    {noreply, subscribe(Path, SubscribeId, Listener, State)};
-handle_cast({unsubscribe, SubscribeId}, State) ->
-    {noreply, unsubscribe(SubscribeId, State)};
-handle_cast({publish, Path, Value}, State) ->
-    publish(Path, Value, State),
-    {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
 

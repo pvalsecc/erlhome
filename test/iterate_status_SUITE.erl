@@ -21,25 +21,25 @@ all() ->
     [test].
 
 init_per_testcase(_TestCase, Config) ->
-    {ok, Change} = gen_event:start_link({local, change_notif}),
+    {ok, _Dispatcher} = ehome_dispatcher:start_link(),
     {ok, Status} = gen_event:start_link({local, status_notif}),
     {ok, Sup} = ehome_elements_sup:start_link(),
-    [{events, [Change, Status]}, {sup, Sup} | Config].
+    [{events, [Status]}, {sup, Sup} | Config].
 
 end_per_testcase(_TestCase, Config) ->
-    lists:map(fun gen_event:stop/1, rest_utils:get_config(events, Config)),
     ehome_elements_sup:stop(rest_utils:get_config(sup, Config)),
+    lists:map(fun gen_event:stop/1, rest_utils:get_config(events, Config)),
+    ehome_dispatcher:stop(),
     Config.
 
-test(Config) ->
-    Sup = rest_utils:get_config(sup, Config),
-    ehome_elements_sup:handle_event(Sup, {create,
-        #element{id = 1, type = <<"switch">>}}),
-    ehome_elements_sup:handle_event(Sup, {create,
-        #element{id = 2, type = <<"relay">>}}),
-    ehome_elements_sup:handle_event(Sup, {create,
+test(_Config) ->
+    ehome_elements_sup:handle_event([db, create, element, 1, 1],
+        #element{id = 1, type = <<"switch">>}),
+    ehome_elements_sup:handle_event([db, create, element, 1, 2],
+        #element{id = 2, type = <<"relay">>}),
+    ehome_elements_sup:handle_event([db, create, connection, 1, 3],
         #connection{id = 3, source_id = 1, source_output = 1,
-                    target_id = 2, target_input = 1}}),
+                    target_id = 2, target_input = 1}),
     Actual = ehome_elements_sup:iterate_status(fun(Notif, Acc) ->
         [Notif|Acc]
     end, []),
