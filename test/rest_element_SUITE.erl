@@ -34,30 +34,30 @@ end_per_testcase(TestCase, Config) ->
 create(Config) ->
     UrlSchema = get_schema_url(Config),
     Url1 = UrlSchema ++ "/elements/2",
-    Url1 = create_element(UrlSchema, "element1"),
+    Url1 = create_element(UrlSchema, "and"),
     Id = rest_utils:id_from_url(Url1),
-    #{id := Id, type := "element1", x := 1, y := 1} = rest_utils:get_json(Url1),
+    #{id := Id, type := "and", x := 1, y := 1} = rest_utils:get_json(Url1),
 
     Url2 = UrlSchema ++ "/elements/3",
-    Url2 = create_element(UrlSchema, "element2"),
+    Url2 = create_element(UrlSchema, "or"),
     Elements = rest_utils:get_json(UrlSchema ++ "/elements"),
     [#{type := Type1}, #{type := Type2}] = Elements,
     true = sets:from_list([Type1, Type2]) ==
-        sets:from_list(["element1", "element2"]).
+        sets:from_list(["and", "or"]).
 
 delete(Config) ->
     UrlSchema = get_schema_url(Config),
-    Url = create_element(UrlSchema, "element1"),
+    Url = create_element(UrlSchema, "and"),
     rest_utils:delete_url(Url),
     rest_utils:get_json_fail(Url),
     [] = rest_utils:get_json(UrlSchema ++ "/elements").
 
 update(Config) ->
     UrlSchema = get_schema_url(Config),
-    Url = create_element(UrlSchema, "element1"),
-    #{type := "element1"} = rest_utils:get_json(Url),
-    update_element(Url, "element2"),
-    #{type := "element2"} = rest_utils:get_json(Url).
+    Url = create_element(UrlSchema, "and"),
+    #{type := "and"} = rest_utils:get_json(Url),
+    update_element(Url, "or"),
+    #{type := "or"} = rest_utils:get_json(Url).
 
 
 %% Utils ============================

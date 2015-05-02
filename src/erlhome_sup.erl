@@ -23,7 +23,9 @@ start_link(EnablePersistency) ->
 %% ===================================================================
 
 init([EnablePersistency]) ->
-    {ok, { {one_for_one, 5, 10}, [
+    {ok, { {rest_for_one, 5, 10}, [
+        {dispatcher, {ehome_dispatcher, start_link, []},
+            permanent, 5000, worker, dynamic},
         {change_notif, {gen_event, start_link, [{local, change_notif}]},
             permanent, 5000, worker, dynamic},
         {status_notif, {gen_event, start_link, [{local, status_notif}]},

@@ -322,12 +322,6 @@ delete_schema(Id, #state{schemas = Schemas} = State) ->
             {true, State#state{schemas = lists:keydelete(Id, #schema.id, Schemas)}}
     end.
 
-notify_schema_deletion(#schema{elements = Elements}) ->
-    lists:foreach(fun notify_sub_deletion/1, Elements).
-
-notify_sub_deletion(Sub) ->
-    gen_event:notify(change_notif, {delete, Sub}).
-
 get_sub(SchemaId, SubId, State, Modifier) ->
     {Ret, State} = Modifier(SchemaId, fun(Subs) ->
         {lists:keyfind(SubId, #element.id, Subs), Subs}
@@ -338,17 +332,14 @@ create_sub(SchemaId, #state{next_id = Id} = State,
         Modifier, SubFactory) ->
     NewSub = SubFactory(Id),
     Modifier(SchemaId, fun(Subs) ->
-        notify_sub_creation(NewSub),
+        notify_sub_creation(SchemaId, NewSub),
         {Id, [NewSub | Subs]}
     end, State#state{next_id = Id + 1}).
-
-notify_sub_creation(Sub) ->
-    gen_event:notify(change_notif, {create, Sub}).
 
 update_sub(SchemaId, SubId, Sub, State, Modifier) ->
     Modifier(SchemaId, fun(Subs) ->
         PrevSub = lists:keyfind(SubId, #element.id, Subs),
-        gen_event:notify(change_notif, {update, Sub, PrevSub}),
+        notify_sub_update(SchemaId, Sub, PrevSub),
         {true, lists:keyreplace(SubId, #element.id, Subs, Sub)}
     end, State).
 
@@ -357,7 +348,7 @@ delete_connection(SchemaId, SubId, State) ->
         case lists:keyfind(SubId, #element.id, Subs) of
             false -> {false, Subs};
             Sub ->
-                notify_sub_deletion(Sub),
+                notify_sub_deletion(SchemaId, Sub),
                 {true, lists:keydelete(SubId, #element.id, Subs)}
         end
     end, State).
@@ -368,13 +359,34 @@ delete_element(SchemaId, ElementId, State) ->
             case lists:keyfind(ElementId, #element.id, Elements) of
                 false -> {false, Schema};
                 Sub ->
-                    NewCons = del_element_connections(ElementId, Connections),
-                    notify_sub_deletion(Sub),
+                    NewCons = del_element_connections(SchemaId, ElementId, Connections),
+                    notify_sub_deletion(SchemaId, Sub),
                     NewElems = lists:keydelete(ElementId, #element.id, Elements),
                     {true, Schema#schema{connections = NewCons,
                                          elements = NewElems}}
             end
         end, State).
+
+get_notif_path(Action, SchemaId, #element{id = Id}) ->
+    [db, Action, element, SchemaId, Id];
+get_notif_path(Action, SchemaId, #connection{id = Id}) ->
+    [db, Action, connection, SchemaId, Id].
+
+notify_sub_creation(SchemaId, Sub) ->
+    ehome_dispatcher:publish(get_notif_path(create, SchemaId, Sub), Sub),
+    gen_event:notify(change_notif, {create, Sub}).
+
+notify_sub_update(SchemaId, Sub, PrevSub) ->
+    ehome_dispatcher:publish(get_notif_path(update, SchemaId, Sub),
+                             {Sub, PrevSub}),
+    gen_event:notify(change_notif, {update, Sub, PrevSub}).
+
+notify_schema_deletion(#schema{id = Id, elements = Elements}) ->
+    lists:foreach(fun(E) -> notify_sub_deletion(Id, E) end, Elements).
+
+notify_sub_deletion(SchemaId, Sub) ->
+    ehome_dispatcher:publish(get_notif_path(delete, SchemaId, Sub), Sub),
+    gen_event:notify(change_notif, {delete, Sub}).
 
 modify_schema(SchemaId, Fun,
         #state{schemas = Schemas} = State) ->
@@ -403,9 +415,10 @@ modify_schema_connections(SchemaId, Fun, State) ->
     end, State).
 
 read_schema_from_db(
-        #schema{elements = Elements, connections = Connections} = Schema) ->
-    lists:foreach(fun notify_sub_creation/1, Elements),
-    lists:foreach(fun notify_sub_creation/1, Connections),
+        #schema{id = Id, elements = Elements,
+                connections = Connections} = Schema) ->
+    lists:foreach(fun(E) -> notify_sub_creation(Id, E) end, Elements),
+    lists:foreach(fun(C) -> notify_sub_creation(Id, C) end, Connections),
     {continue, Schema}.
 
 get_last_id(Schemas) ->
@@ -424,18 +437,18 @@ get_last_id([#element{id = Id} | Rest], Last) ->
 get_last_id([#connection{id = Id} | Rest], Last) ->
     get_last_id(Rest, max(Id, Last)).
 
-del_element_connections(_ElementId, []) ->
+del_element_connections(SchemaId, _ElementId, []) ->
     [];
-del_element_connections(ElementId,
+del_element_connections(SchemaId, ElementId,
         [#connection{source_id = ElementId} = Con | Rest]) ->
-    notify_sub_deletion(Con),
-    del_element_connections(ElementId, Rest);
-del_element_connections(ElementId,
+    notify_sub_deletion(SchemaId, Con),
+    del_element_connections(SchemaId, ElementId, Rest);
+del_element_connections(SchemaId, ElementId,
         [#connection{target_id = ElementId} = Con | Rest]) ->
-    notify_sub_deletion(Con),
-    del_element_connections(ElementId, Rest);
-del_element_connections(ElementId, [Cur|Rest]) ->
-    [Cur | del_element_connections(ElementId, Rest)].
+    notify_sub_deletion(SchemaId, Con),
+    del_element_connections(SchemaId, ElementId, Rest);
+del_element_connections(SchemaId, ElementId, [Cur|Rest]) ->
+    [Cur | del_element_connections(SchemaId, ElementId, Rest)].
 
 
 %%%===================================================================
