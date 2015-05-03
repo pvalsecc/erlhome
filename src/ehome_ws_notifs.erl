@@ -26,6 +26,7 @@ init(Req, _Opts) ->
     %TODO: add 60s timeout and have the client ping every 30s
 
 websocket_handle({text, Text}, Req, State) ->
+    %TODO: could have message to set a filter for a schema_id and reduce the traffic
     io:format("websocket_handle: ~p~n", [Text]),
     {ok, Req, State}.
 

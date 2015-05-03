@@ -31,6 +31,7 @@ start_link(SchemaId, Id) ->
 
 
 init({SchemaId, Id}) ->
+    ehome_dispatcher:publish([status, relay, SchemaId, Id], false),
     {[], #state{schema_id = SchemaId, id = Id}}.
 
 new_inputs([Input], _OldOutputs,
