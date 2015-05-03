@@ -21,7 +21,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, subscribe/3, publish/2, stop/0]).
+-export([start_link/0, subscribe/3, publish/2, stop/0, unsubscribe/1]).
 
 %% gen_server callbacks
 -export([init/1,

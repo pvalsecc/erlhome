@@ -26,8 +26,6 @@ init([EnablePersistency]) ->
     {ok, { {rest_for_one, 5, 10}, [
         {dispatcher, {ehome_dispatcher, start_link, []},
             permanent, 5000, worker, dynamic},
-        {status_notif, {gen_event, start_link, [{local, status_notif}]},
-            permanent, 5000, worker, dynamic},
         {elements_sup, {ehome_elements_sup, start_link, []},
             permanent, 5000, worker, [ehome_elements_sup]},
         {db, {ehome_db, start_link, [EnablePersistency]}, permanent, 5000, worker,

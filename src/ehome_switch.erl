@@ -14,48 +14,49 @@
 -behaviour(ehome_element).
 
 %% API
--export([start_link/1, switch/2, control/3]).
+-export([start_link/2, switch/2, control/3]).
 
 -export([init/1, new_inputs/3, iterate_status/3]).
 
--record(state, {id :: integer(), status = false :: boolean()}).
+-record(state, {
+    schema_id :: integer(),
+    id :: integer(),
+    status = false :: boolean()
+}).
 
--spec(start_link(Id :: integer()) ->
+-spec(start_link(SchemaId :: integer(), Id :: integer()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Id) ->
-    ehome_element:start_link(Id, ehome_switch, 0, 1, Id).
+start_link(SchemaId, Id) ->
+    ehome_element:start_link(SchemaId, Id, ehome_switch, 0, 1, {SchemaId, Id}).
 
 -spec(switch(Gate :: pid(), Value :: boolean()) -> ok).
 switch(Gate, Value) ->
     ehome_element:new_outputs(Gate, [Value]).
 
-init(Id) ->
-    gen_event:notify(status_notif, create_notif(Id, false)),
-    {[false], #state{id = Id}}.
+init({SchemaId, Id}) ->
+    ehome_dispatcher:publish([status, switch, SchemaId, Id], false),
+    {[false], #state{schema_id = SchemaId, id = Id}}.
 
 new_inputs(_Inputs, _OldOutputs, _State) ->
     %no input => should not be called
     erlang:error(not_implemented).
 
 iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(#notif{type = switch, id = Id, value = Status}, Acc).
+    Callback(#status{type = switch, id = Id, value = Status}, Acc).
 
-create_notif(Id, Value) ->
-    #notif{type = switch, id = Id, value = Value}.
-
-control(<<"switch">>, Message, #state{id = Id} = Inner)
+control(<<"switch">>, Message, Inner)
         when is_boolean(Message) ->
-    new_value(Id, Message, Inner);
+    new_value(Message, Inner);
 
-control(<<"toggle">>, _Message, #state{id = Id, status = OldValue} = Inner) ->
-    new_value(Id, not OldValue, Inner);
+control(<<"toggle">>, _Message, #state{status = OldValue} = Inner) ->
+    new_value(not OldValue, Inner);
 
 control(Type, Message, _Inner) ->
     io:format("ehome_switch: un-supported message ~p/~p~n", [Type, Message]),
     false.
 
-new_value(Id, Value, Inner) ->
-    gen_event:notify(status_notif, create_notif(Id, Value)),
+new_value(Value, #state{schema_id = SchemaId, id = Id} = Inner) ->
+    ehome_dispatcher:publish([status, switch, SchemaId, Id], Value),
     {new_outputs, [Value], Inner#state{status = Value}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -64,13 +65,13 @@ new_value(Id, Value, Inner) ->
 -include_lib("eunit/include/eunit.hrl").
 
 switch_test() ->
-    {ok, Events} = gen_event:start_link({local, status_notif}),
-    {ok, Switch} = start_link(1),
-    {ok, Relay} = ehome_relay:start_link(2),
+    ehome_dispatcher:start_link(),
+    {ok, Switch} = start_link(1, 1),
+    {ok, Relay} = ehome_relay:start_link(1, 2),
     ehome_element:connect(Switch, 1, Relay, 1, 1),
     test_utils:wait_queues_empty([Switch, Relay]),
     [false] = ehome_element:get_inputs(Relay),
     switch(Switch, true),
     test_utils:wait_queues_empty([Switch, Relay]),
     [true] = ehome_element:get_inputs(Relay),
-    gen_event:stop(Events).
+    ehome_dispatcher:stop().

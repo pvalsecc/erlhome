@@ -434,7 +434,7 @@ get_last_id([#element{id = Id} | Rest], Last) ->
 get_last_id([#connection{id = Id} | Rest], Last) ->
     get_last_id(Rest, max(Id, Last)).
 
-del_element_connections(SchemaId, _ElementId, []) ->
+del_element_connections(_SchemaId, _ElementId, []) ->
     [];
 del_element_connections(SchemaId, ElementId,
         [#connection{source_id = ElementId} = Con | Rest]) ->

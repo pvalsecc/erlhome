@@ -12,18 +12,18 @@
 -include("ehome_types.hrl").
 
 %% cowboy websocket API
--export([init/2, websocket_handle/3, websocket_info/3, handle_event/2]).
+-export([init/2, websocket_handle/3, websocket_info/3, terminate/3]).
 
 -record(state, {}).
 
 init(Req, _Opts) ->
-    self() ! send_current_states,
-    ehome_event_forwarder:register(status_notif, ?MODULE, self()),
+    Self = self(),
+    Self ! send_current_states,
+    ehome_dispatcher:subscribe([status, all], Self, fun(Path, Value) ->
+        Self ! {event, Path, Value}
+    end),
     {cowboy_websocket, Req, #state{}}.
     %TODO: add 60s timeout and have the client ping every 30s
-
-handle_event(Target, Event) ->
-    Target ! {event, Event}.
 
 websocket_handle({text, Text}, Req, State) ->
     io:format("websocket_handle: ~p~n", [Text]),
@@ -33,13 +33,19 @@ websocket_info(send_current_states, Req, State) ->
     Content = ehome_elements_sup:iterate_status(fun build_message/2, []),
     {reply, Content, Req, State};
 
-websocket_info({event, Notif}, Req,
+websocket_info({event, [status, Type, _SchemaId, Id], Value}, Req,
         State) ->
-    {reply, build_message(Notif), Req, State}.
+    {reply, build_message(Type, Id, Value), Req, State}.
 
 build_message(Notif, Acc) ->
     [build_message(Notif) | Acc].
 
-build_message(#notif{type = Type, id = Id, value = Value}) ->
+build_message(#status{type = Type, id = Id, value = Value}) ->
+    build_message(Type, Id, Value).
+
+build_message(Type, Id, Value) ->
     {text, jiffy:encode(#{type => Type, id => Id, value => Value})}.
 
+terminate(_Reason, _Req, State) ->
+    ehome_dispatcher:unsubscribe(self()),
+    State.

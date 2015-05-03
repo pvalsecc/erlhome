@@ -37,10 +37,10 @@
     connections = [] :: [#connection{}]
 }).
 
--record(notif, {
+-record(status, {
     type :: atom(),
     id :: integer(),
     value :: boolean()
 }).
 
--type status_callback() :: fun((Notif :: #notif{}, Acc :: any()) -> any()).
+-type status_callback() :: fun((Notif :: #status{}, Acc :: any()) -> any()).

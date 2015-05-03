@@ -28,7 +28,7 @@
     any()  | false.
 
 %% API
--export([start_link/5, set_input/3, new_outputs/2, connect/5, disconnect/3,
+-export([start_link/6, set_input/3, new_outputs/2, connect/5, disconnect/3,
     get_inputs/1, get_outputs/1, stop/1, iterate_status/3, control/3]).
 
 %% gen_server callbacks
@@ -40,6 +40,7 @@
     code_change/3]).
 
 -record(state, {
+    schema_id :: integer(),
     id :: integer(),
     implementation :: atom(),
     input_values :: list(boolean()),
@@ -58,12 +59,12 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(Id :: integer(), Module :: atom(),
+-spec(start_link(SchemaId :: integer(), Id :: integer(), Module :: atom(),
         NbInputs :: integer(), NbOutputs :: integer(), Params :: any()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Id, Module, NbInputs, NbOutputs, Params) ->
-    gen_server:start_link(?MODULE, [Id, Module, NbInputs, NbOutputs, Params],
-        []).
+start_link(SchemaId, Id, Module, NbInputs, NbOutputs, Params) ->
+    gen_server:start_link(?MODULE,
+        [SchemaId, Id, Module, NbInputs, NbOutputs, Params], []).
 
 -spec(set_input(Gate :: pid(), Index :: pos_integer(), Value :: boolean()) -> ok).
 set_input(Gate, Index, Value) ->
@@ -118,15 +119,18 @@ control(Gate, Type, Message) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([Id, Module, NbInputs, NbOutputs, Params]) ->
+init([SchemaId, Id, Module, NbInputs, NbOutputs, Params]) ->
     {Outputs, InnerState} = Module:init(Params),
     NbOutputs = length(Outputs),
-    {ok, #state{id = Id,
+    {ok, #state{
+        schema_id = SchemaId,
+        id = Id,
         implementation = Module,
         input_values = false_list(NbInputs),
         output_values = Outputs,
         output_connections = create_list(NbOutputs, []),
-        inner_state = InnerState}}.
+        inner_state = InnerState
+    }}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -194,7 +198,7 @@ handle_cast({connect, Output, Destination, Input, Id},
         replace_list(Connections, Output, [{Id, Destination, Input} | Cur]),
     NewState = State#state{output_connections = NewConnections},
     Value = lists:nth(Output, Values),
-    notify_all(Value, [{Id, Destination, Input}]),
+    notify_all(Value, [{Id, Destination, Input}], NewState),
     {noreply, NewState};
 
 handle_cast({disconnect, Output, Id},
@@ -263,7 +267,7 @@ handle_new_outputs(NewOutputs, NewInner,
         #state{id = Id, output_values = Outputs, output_connections = Connections} =
             State) ->
     io:format("~p: output=~w~n", [Id, NewOutputs]),
-    notify(Outputs, NewOutputs, Connections),
+    notify(Outputs, NewOutputs, Connections, State),
     {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
 
 handle_inputs(#state{implementation = Impl, input_values = Inputs,
@@ -294,21 +298,22 @@ remove_first_match(ToRemove, [ToRemove|Rest]) ->
 remove_first_match(ToRemove, [Cur|Rest]) ->
     [Cur|remove_first_match(ToRemove, Rest)].
 
-notify([], [], []) ->
+notify([], [], [], _State) ->
     undefined;
-notify([H | ROld], [H | RNew], [_ | RCon]) ->
+notify([H | ROld], [H | RNew], [_ | RCon], State) ->
     %Output not changed
-    notify(ROld, RNew, RCon);
-notify([_HOld | ROld], [HNew | RNew], [HCon | RCon]) ->
-    notify_all(HNew, HCon),
-    notify(ROld, RNew, RCon).
+    notify(ROld, RNew, RCon, State);
+notify([_HOld | ROld], [HNew | RNew], [HCon | RCon], State) ->
+    notify_all(HNew, HCon, State),
+    notify(ROld, RNew, RCon, State).
 
-notify_all(_Value, []) ->
+notify_all(_Value, [], _State) ->
     undefined;
-notify_all(Value, [{Id, Pid, Input} | Rest]) ->
+notify_all(Value, [{Id, Pid, Input} | Rest],
+        #state{schema_id = SchemaId} = State) ->
     set_input(Pid, Input, Value),
-    gen_event:notify(status_notif, connection_notif(Id, Value)),
-    notify_all(Value, Rest).
+    ehome_dispatcher:publish([status, connection, SchemaId, Id], Value),
+    notify_all(Value, Rest, State).
 
 iterate_status_outputs(_Callback, Acc, [], []) ->
     Acc;
@@ -323,7 +328,7 @@ iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
     iterate_status_output(Callback, Acc1, Value, Rest).
 
 connection_notif(Id, Value) ->
-    #notif{type = connection, id = Id, value = Value}.
+    #status{type = connection, id = Id, value = Value}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

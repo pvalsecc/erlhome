@@ -54,7 +54,7 @@ handle_event(Topic, Event) ->
     gen_server:cast(?MODULE, {handle_event, Topic, Event}).
 
 stop(Sup) ->
-    gen_server:cast(Sup, stop).
+    gen_server:call(Sup, stop).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -101,6 +101,8 @@ handle_call({iterate_status, Callback, Acc}, _From, State) ->
     {reply, iterate_status(Callback, Acc, State), State};
 handle_call({control, Id, Type, Message}, _From, State) ->
     {reply, control(Id, Type, Message, State), State};
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -117,8 +119,6 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({handle_event, Topic, Event}, State) ->
     {noreply, handle_event(Topic, Event, State)};
-handle_cast(stop, State) ->
-    {stop, normal, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
 
@@ -159,6 +159,7 @@ handle_info(_Info, State) ->
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
         State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
+    ehome_dispatcher:unsubscribe(self()),
     ok.
 
 %%--------------------------------------------------------------------
@@ -179,31 +180,31 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-get_start_func(#element{id = Id, type = <<"and">>}) ->
-    {ehome_21_gate, and_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"or">>}) ->
-    {ehome_21_gate, or_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"xor">>}) ->
-    {ehome_21_gate, xor_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"not">>}) ->
-    {ehome_11_gate, not_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"relay">>}) ->
-    {ehome_relay, start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"switch">>}) ->
-    {ehome_switch, start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"up_edge">>}) ->
-    {ehome_edge_gate, up_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"down_edge">>}) ->
-    {ehome_edge_gate, down_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"both_edge">>}) ->
-    {ehome_edge_gate, both_start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"d_flipflop">>}) ->
-    {ehome_d_flipflop, start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"force_off">>}) ->
-    {ehome_force_off, start_link, [Id]};
-get_start_func(#element{id = Id, type = <<"timer">>,
+get_start_func(SchemaId, #element{id = Id, type = <<"and">>}) ->
+    {ehome_21_gate, and_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"or">>}) ->
+    {ehome_21_gate, or_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"xor">>}) ->
+    {ehome_21_gate, xor_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"not">>}) ->
+    {ehome_11_gate, not_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"relay">>}) ->
+    {ehome_relay, start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"switch">>}) ->
+    {ehome_switch, start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"up_edge">>}) ->
+    {ehome_edge_gate, up_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"down_edge">>}) ->
+    {ehome_edge_gate, down_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"both_edge">>}) ->
+    {ehome_edge_gate, both_start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"d_flipflop">>}) ->
+    {ehome_d_flipflop, start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"force_off">>}) ->
+    {ehome_force_off, start_link, [SchemaId, Id]};
+get_start_func(SchemaId, #element{id = Id, type = <<"timer">>,
     config = Config}) ->
-    {ehome_timer_gate, start_link, [Id, Config]}.
+    {ehome_timer_gate, start_link, [SchemaId, Id, Config]}.
 
 pid_from_id(Id, #state{elements = Elements}) ->
     case lists:keyfind(Id, #element_mapping.id, Elements) of
@@ -219,8 +220,8 @@ add_id(Id, Pid, #state{elements = Elements} = State) ->
 remove_id(Id, #state{elements = Elements} = State) ->
     State#state{elements = lists:keydelete(Id, #element_mapping.id, Elements)}.
 
-handle_event([db, create, element, _SchemaId, Id], #element{} = Element, State) ->
-    {Module, Fun, Args} = get_start_func(Element),
+handle_event([db, create, element, SchemaId, Id], #element{} = Element, State) ->
+    {Module, Fun, Args} = get_start_func(SchemaId, Element),
     {ok, Pid} = apply(Module, Fun, Args),
     add_id(Id, Pid, State);
 

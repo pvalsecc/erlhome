@@ -12,14 +12,14 @@
 -behaviour(ehome_element).
 
 %% API
--export([start_link/1]).
+-export([start_link/2]).
 
 -export([init/1, new_inputs/3, iterate_status/3, control/3]).
 
 -record(state, {xor_value = false :: boolean()}).
 
-start_link(Id) ->
-    ehome_element:start_link(Id, ?MODULE, 2, 1, []).
+start_link(SchemaId, Id) ->
+    ehome_element:start_link(SchemaId, Id, ?MODULE, 2, 1, []).
 
 init(_Args) ->
     {[false], #state{}}.
@@ -44,7 +44,7 @@ control(Type, Message, _Inner) ->
 -include_lib("eunit/include/eunit.hrl").
 
 basic_test() ->
-    {ok, Gate} = start_link(1),
+    {ok, Gate} = start_link(1, 1),
     test_utils:wait_queue_empty(Gate),
     [false] = ehome_element:get_outputs(Gate),
     ok = ehome_element:set_input(Gate, 1, true),

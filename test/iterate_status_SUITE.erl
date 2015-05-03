@@ -22,13 +22,11 @@ all() ->
 
 init_per_testcase(_TestCase, Config) ->
     {ok, _Dispatcher} = ehome_dispatcher:start_link(),
-    {ok, Status} = gen_event:start_link({local, status_notif}),
     {ok, Sup} = ehome_elements_sup:start_link(),
-    [{events, [Status]}, {sup, Sup} | Config].
+    [{sup, Sup} | Config].
 
 end_per_testcase(_TestCase, Config) ->
     ehome_elements_sup:stop(rest_utils:get_config(sup, Config)),
-    lists:map(fun gen_event:stop/1, rest_utils:get_config(events, Config)),
     ehome_dispatcher:stop(),
     Config.
 
@@ -44,9 +42,9 @@ test(_Config) ->
         [Notif|Acc]
     end, []),
     Expected = [
-        #notif{type = switch, id = 1, value = false},
-        #notif{type = relay, id = 2, value = false},
-        #notif{type = connection, id = 3, value = false}
+        #status{type = switch, id = 1, value = false},
+        #status{type = relay, id = 2, value = false},
+        #status{type = connection, id = 3, value = false}
     ],
     io:format("Actual ~p~n", [Actual]),
     true = sets:from_list(Actual) == sets:from_list(Expected).

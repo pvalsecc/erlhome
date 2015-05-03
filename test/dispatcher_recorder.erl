@@ -41,8 +41,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-subscribe(Path) ->
-    ehome_dispatcher:subscribe(Path, ?SERVER, fun(Path, Value) ->
+subscribe(SubPath) ->
+    ehome_dispatcher:subscribe(SubPath, ?SERVER, fun(Path, Value) ->
         gen_server:cast(?SERVER, {handle, Path, Value})
     end).
 

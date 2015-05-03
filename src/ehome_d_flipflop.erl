@@ -12,15 +12,15 @@
 -behaviour(ehome_element).
 
 %% API
--export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/1]).
+-export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/2]).
 
 -record(state, {
     value = false :: boolean(),
     prev_clock = false :: boolean()
 }).
 
-start_link(Id) ->
-    ehome_element:start_link(Id, ehome_d_flipflop, 2, 1, []).
+start_link(SchemaId, Id) ->
+    ehome_element:start_link(SchemaId, Id, ehome_d_flipflop, 2, 1, []).
 
 init(_Args) ->
     {[false], #state{}}.
@@ -45,7 +45,7 @@ control(Type, Message, _Inner) ->
 -include_lib("eunit/include/eunit.hrl").
 
 nominal_test() ->
-    {ok, FlipFlop} = start_link(1),
+    {ok, FlipFlop} = start_link(1, 1),
     [false] = ehome_element:get_outputs(FlipFlop),
     ehome_element:set_input(FlipFlop, 1, true),
     test_utils:wait_queue_empty(FlipFlop),

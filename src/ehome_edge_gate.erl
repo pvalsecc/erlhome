@@ -12,7 +12,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([up_start_link/1, down_start_link/1, both_start_link/1]).
+-export([up_start_link/2, down_start_link/2, both_start_link/2]).
 
 -export([init/1, new_inputs/3, iterate_status/3, control/3]).
 
@@ -22,23 +22,23 @@
 
 -define(DELAY, 100).
 
--spec(up_start_link(Id :: integer()) ->
+-spec(up_start_link(SchemaId :: integer(), Id :: integer()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-up_start_link(Id) ->
-    start_link(Id, up).
+up_start_link(SchemaId, Id) ->
+    start_link(SchemaId, Id, up).
 
--spec(down_start_link(Id :: integer()) ->
+-spec(down_start_link(SchemaId :: integer(), Id :: integer()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-down_start_link(Id) ->
-    start_link(Id, down).
+down_start_link(SchemaId, Id) ->
+    start_link(SchemaId, Id, down).
 
--spec(both_start_link(Id :: integer()) ->
+-spec(both_start_link(SchemaId :: integer(), Id :: integer()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-both_start_link(Id) ->
-    start_link(Id, both).
+both_start_link(SchemaId, Id) ->
+    start_link(SchemaId, Id, both).
 
-start_link(Id, Trigger) ->
-    ehome_element:start_link(Id, ?MODULE, 1, 1, Trigger).
+start_link(SchemaId, Id, Trigger) ->
+    ehome_element:start_link(SchemaId, Id, ?MODULE, 1, 1, Trigger).
 
 init(Trigger) ->
     {[false], #state{trigger = Trigger}}.
@@ -80,9 +80,9 @@ is_edge(_Input, #state{trigger = both}) ->
 -define(MARGIN, 10).
 
 up_test() ->
-    {ok, Events} = gen_event:start_link({local, status_notif}),
-    {ok, Up} = up_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
+    ehome_dispatcher:start_link(),
+    {ok, Up} = up_start_link(1, 1),
+    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Up, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Up, Memory]),
     [false] = ehome_element:get_outputs(Up),
@@ -94,12 +94,12 @@ up_test() ->
     timer:sleep(?DELAY + ?MARGIN),
     [false] = ehome_element:get_outputs(Up),
 
-    gen_event:stop(Events).
+    ehome_dispatcher:stop().
 
 down_test() ->
-    {ok, Events} = gen_event:start_link({local, status_notif}),
-    {ok, Down} = down_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
+    ehome_dispatcher:start_link(),
+    {ok, Down} = down_start_link(1, 1),
+    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Down, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Down, Memory]),
     [false] = ehome_element:get_outputs(Down),
@@ -116,12 +116,12 @@ down_test() ->
     timer:sleep(?DELAY + ?MARGIN),
     [false] = ehome_element:get_outputs(Down),
 
-    gen_event:stop(Events).
+    ehome_dispatcher:stop().
 
 both_test() ->
-    {ok, Events} = gen_event:start_link({local, status_notif}),
-    {ok, Both} = both_start_link(1),
-    {ok, Memory} = ehome_timer_gate:start_link(2, #{<<"delay">> => 0}),
+    ehome_dispatcher:start_link(),
+    {ok, Both} = both_start_link(1, 1),
+    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
     ok = ehome_element:connect(Both, 1, Memory, 1, 3),
     test_utils:wait_queues_empty([Both, Memory]),
     [false] = ehome_element:get_outputs(Both),
@@ -145,4 +145,4 @@ both_test() ->
     timer:sleep(?DELAY + ?MARGIN),
     [false] = ehome_element:get_outputs(Both),
 
-    gen_event:stop(Events).
+    ehome_dispatcher:stop().
