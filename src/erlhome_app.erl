@@ -30,7 +30,7 @@ start(_StartType, _StartArgs) ->
         {env, [{dispatch, Dispatch}]}
     ]),
     EnablePersistency =
-        application:get_env(erlhome_app, enable_persistency, true),
+        application:get_env(erlhome, enable_persistency, true),
     erlhome_sup:start_link(EnablePersistency).
 
 stop(_State) ->

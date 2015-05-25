@@ -21,7 +21,8 @@ all() ->
     [create, delete, update].
 
 init_per_testcase(_TestCase, Config) ->
-    application:set_env(erlhome_app, enable_persistency, false),
+    application:set_env(erlhome, enable_persistency, false),
+    application:set_env(erlhome, enable_mqtt, false),
     {ok, AppStartList} = application:ensure_all_started(erlhome),
     {ok, AppStartList2} = application:ensure_all_started(inets),
     NewConfig = lists:keystore(app_start_list, 1, Config, {app_start_list,

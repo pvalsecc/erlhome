@@ -12,6 +12,7 @@
 %%%       update
 %%%           element/{SchemaId}/{SubId} -> {New :: #element{}, Old ::#element{}}
 %%%           connection/{SchemaId}/{SubId} -> {New :: #connection{}, Old ::#connection{}}
+%%%       mqtt/{deviceId}/{instanceId}/{class}/... -> Value
 %%% @end
 %%% Created : 02. May 2015 09:50
 %%%-------------------------------------------------------------------
@@ -299,4 +300,9 @@ nominal_test() ->
     [{[toto, 2, 3], 2}] = get_recorded(Recorder2),
     [{[toto, 2, 3], 2}] = get_recorded(Recorder3),
     [] = get_recorded(Recorder4),
+    ok = stop().
+
+no_subscriber_test() ->
+    start_link(),
+    ok = publish([toto, 2, 3], 1),
     ok = stop().
