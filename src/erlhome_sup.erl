@@ -33,7 +33,7 @@ init([EnablePersistency]) ->
     ],
     Childs2 = case application:get_env(erlhome, enable_mqtt, true) of
         false -> Childs;
-        _ -> Childs ++ [{mqtt_bridge, {ehome_mqtt_bridge, start_link, []},
-                         permanent, 5000, worker, [ehome_mqtt_bridge]}]
+        _ -> Childs ++ [{mqtt_tree, {ehome_mqtt_tree, start_link, []},
+                         permanent, 5000, worker, [ehome_mqtt_tree]}]
     end,
     {ok, { {rest_for_one, 5, 10}, Childs2}}.

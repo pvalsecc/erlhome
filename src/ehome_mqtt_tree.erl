@@ -4,15 +4,15 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 25. mai 2015 09:18
+%%% Created : 25. mai 2015 15:32
 %%%-------------------------------------------------------------------
--module(ehome_mqtt_bridge).
+-module(ehome_mqtt_tree).
 -author("patrick").
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, dump/0]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -22,8 +22,14 @@
     terminate/2,
     code_change/3]).
 
+-record(node, {
+    value = undefined :: atom(),
+    subs = #{}:: #{any() => #node{}}
+}).
+
 -record(state, {
-    mqtt :: pid()
+    mqtt :: pid(),
+    root = #node{} :: #node{}
 }).
 
 %%%===================================================================
@@ -39,7 +45,10 @@
 -spec(start_link() ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+dump() ->
+    gen_server:cast(?MODULE, dump).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -60,8 +69,8 @@ start_link() ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
 init([]) ->
-    Mqtt = mqtt_client:connect(),
     Self = self(),
+    Mqtt = mqtt_client:connect(),
     mqtt_client:subscribe(Mqtt, "#", fun(Topic, Message) ->
         gen_server:cast(Self, {from_mqtt, Topic, Message})
     end),
@@ -100,8 +109,12 @@ handle_cast({from_mqtt, TopicRaw, MessageRaw}, State) ->
     Topic = split_topic_name(TopicRaw),
     Message = convert_value(MessageRaw),
     {noreply, from_mqtt(Topic, Message, State)};
+handle_cast(dump, #state{root = Root} = State) ->
+    dump(Root, ""),
+    {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -154,6 +167,20 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+learn([], Value, Root) ->
+    Root#node{value = Value};
+learn([H|Rest], Value, #node{subs = Subs} = Root) ->
+    Sub = maps:get(H, Subs, #node{}),
+    NewSub = learn(Rest, Value, Sub),
+    Root#node{subs = maps:put(H, NewSub, Subs)}.
+
+dump(#node{subs = Subs}, Indent) ->
+    NewIndent = "  " ++ Indent,
+    maps:fold(fun(Key, #node{value = Value} = Node, _Acc) ->
+        io:format("~s~p = ~p~n", [Indent, Key, Value]),
+        dump(Node, NewIndent)
+    end, ok, Subs).
+
 convert_value(<<0:8>>) ->
     empty;
 convert_value(<<1:8, 0:8>>) ->
@@ -172,18 +199,21 @@ convert_value(Message) ->
     Message.
 
 from_mqtt(["devices", Device, "instances", Instance, "commandClasses", Class,
-           "data" | Rest], Message, State) ->
-    DeviceNum = list_to_integer(Device),
-    InstanceNum = list_to_integer(Instance),
-    ClassName = class2name(Class),
-    io:format("~p ~p ~p ~p = ~p~n",
-        [DeviceNum, InstanceNum, ClassName, Rest, Message]),
-    ehome_dispatcher:publish(
-        [mqtt, DeviceNum, InstanceNum, ClassName| Rest], Message),
-    State;
+           "data" | Rest], Message, #state{root = Root} = State) ->
+    Path = to_path(Device, Instance, Class, Rest),
+    io:format("~p = ~p~n",
+        [Path, Message]),
+    ehome_dispatcher:publish([mqtt | Path], Message),
+    State#state{root = learn(Path, Message, Root)};
 from_mqtt(Unknown, Message, State) ->
     io:format("Unknown message: ~p = ~p~n", [Unknown, Message]),
     State.
+
+to_path(Device, Instance, Class, Rest) ->
+    DeviceNum = list_to_integer(Device),
+    InstanceNum = list_to_integer(Instance),
+    ClassName = class2name(Class),
+    [DeviceNum, InstanceNum, ClassName | Rest].
 
 split_topic_name(Name) ->
     string:tokens(Name, "/").
@@ -302,3 +332,21 @@ classes() ->
         {mark, 239},
         {non_interoperable, 240}
     ].
+
+%%%===================================================================
+%%% Tests
+%%%===================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+learn_test() ->
+    T1 = learn([a,b,c], 1, #node{}),
+    T2 = learn([a,b,d], 2, T1),
+    #node{subs =
+        #{a := #node{subs =
+            #{b := #node{subs =
+                #{c := #node{value = 1},
+                  d := #node{value = 2}}
+            }}
+        }}
+    } = T2.
