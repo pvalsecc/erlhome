@@ -71,9 +71,13 @@ dump() ->
 init([]) ->
     Self = self(),
     Mqtt = mqtt_client:connect(),
-    mqtt_client:subscribe(Mqtt, "#", fun(Topic, Message) ->
+    mqtt_client:subscribe(Mqtt, "zwave/get/#", fun(Topic, Message) ->
         gen_server:cast(Self, {from_mqtt, Topic, Message})
     end),
+    ehome_dispatcher:subscribe([mqtt, set, all], self(),
+        fun([mqtt, set | Topic], Value) ->
+            gen_server:cast(Self, {to_mqtt, Topic, Value})
+        end),
     {ok, #state{mqtt = Mqtt}}.
 
 %%--------------------------------------------------------------------
@@ -107,14 +111,18 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({from_mqtt, TopicRaw, MessageRaw}, State) ->
     Topic = split_topic_name(TopicRaw),
-    Message = convert_value(MessageRaw),
+    Message = mqtt2erlang(MessageRaw),
     {noreply, from_mqtt(Topic, Message, State)};
+handle_cast({to_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
+    TopicMqtt = build_topic_name(Topic),
+    Message = erlang2mqtt(Value),
+    mqtt_client:publish(Mqtt, TopicMqtt, Message),
+    {noreply, State};
 handle_cast(dump, #state{root = Root} = State) ->
     dump(Root, ""),
     {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
-
 
 %%--------------------------------------------------------------------
 %% @private
@@ -167,12 +175,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+learn([], Value, #node{value = Value} = Root) ->
+    {Root, false};
 learn([], Value, Root) ->
-    Root#node{value = Value};
+    {Root#node{value = Value}, true};
 learn([H|Rest], Value, #node{subs = Subs} = Root) ->
     Sub = maps:get(H, Subs, #node{}),
-    NewSub = learn(Rest, Value, Sub),
-    Root#node{subs = maps:put(H, NewSub, Subs)}.
+    {NewSub, Changed} = learn(Rest, Value, Sub),
+    {Root#node{subs = maps:put(H, NewSub, Subs)}, Changed}.
 
 dump(#node{subs = Subs}, Indent) ->
     NewIndent = "  " ++ Indent,
@@ -181,33 +191,59 @@ dump(#node{subs = Subs}, Indent) ->
         dump(Node, NewIndent)
     end, ok, Subs).
 
-convert_value(<<0:8>>) ->
+mqtt2erlang(<<0:8>>) ->
     empty;
-convert_value(<<1:8, 0:8>>) ->
+mqtt2erlang(<<1:8, 0:8>>) ->
     false;
-convert_value(<<1:8, _:8>>) ->
+mqtt2erlang(<<1:8, _:8>>) ->
     true;
-convert_value(<<2:8, Val:32/integer-native>>) ->
+mqtt2erlang(<<2:8, Val:32/integer-native>>) ->
     Val;
-convert_value(<<3:8, Val:32/float-native>>) ->
+mqtt2erlang(<<3:8, Val:32/float-native>>) ->
     Val;
-convert_value(<<4:8, Val/binary>>) ->
+mqtt2erlang(<<4:8, Val/binary>>) ->
     binary_to_list(Val);
-convert_value(<<5:8, Val/binary>>) ->
+mqtt2erlang(<<5:8, Val/binary>>) ->
     Val;
-convert_value(Message) ->
+mqtt2erlang(Message) ->
     Message.
 
-from_mqtt(["devices", Device, "instances", Instance, "commandClasses", Class,
-           "data" | Rest], Message, #state{root = Root} = State) ->
+erlang2mqtt(empty) ->
+    <<0:8>>;
+erlang2mqtt(false) ->
+    <<1:8, 0:8>>;
+erlang2mqtt(true) ->
+    <<1:8, 1:8>>;
+erlang2mqtt(Val) when is_integer(Val) ->
+    <<2:8, Val:32/integer-native>>;
+erlang2mqtt(Val) when is_float(Val) ->
+    <<3:8, Val:32/float-native>>;
+erlang2mqtt(Val) when is_list(Val) ->
+    <<4:8, (list_to_binary(Val))/binary>>;
+erlang2mqtt(Val) when is_binary(Val) ->
+    <<5:8, Val/binary>>.
+
+from_mqtt(["zwave", "get", "devices", Device, "instances", Instance,
+           "commandClasses", Class, "data" | Rest], Message,
+        #state{root = Root} = State) ->
     Path = to_path(Device, Instance, Class, Rest),
-    io:format("~p = ~p~n",
-        [Path, Message]),
-    ehome_dispatcher:publish([mqtt | Path], Message),
-    State#state{root = learn(Path, Message, Root)};
+    case learn(Path, Message, Root) of
+        {NewRoot, true} ->
+            io:format("~p = ~p~n", [Path, Message]),
+            ehome_dispatcher:publish([mqtt, get | Path], Message),
+            State#state{root = NewRoot};
+        {_, false} ->
+            State
+    end;
 from_mqtt(Unknown, Message, State) ->
     io:format("Unknown message: ~p = ~p~n", [Unknown, Message]),
     State.
+
+build_topic_name([Device, Instance, Class | Rest]) ->
+    List = ["zwave", "set", "devices", integer_to_list(Device),
+            "instances", integer_to_list(Instance), "commandClasses",
+            name2class(Class), "data" | Rest],
+    string:join(List, "/").
 
 to_path(Device, Instance, Class, Rest) ->
     DeviceNum = list_to_integer(Device),
@@ -227,11 +263,13 @@ class2name(Class) when is_integer(Class) ->
     end.
 
 name2class(Name) when is_atom(Name) ->
-    case lists:keyfind(Name, 1, classes()) of
-        {Name, Class} -> Class;
-        Other -> Other
-    end;
+     case lists:keyfind(Name, 1, classes()) of
+         {Name, Class} -> integer_to_list(Class);
+         Other -> Other
+     end;
 name2class(Name) when is_integer(Name) ->
+     integer_to_list(Name);
+name2class(Name) when is_list(Name) ->
     Name.
 
 classes() ->
@@ -282,7 +320,6 @@ classes() ->
         {user_code, 99},
         {barrier_operator, 102},
         {configuration, 112},
-        {configuration_v2, 112},
         {alarm, 113},
         {manufacturer_specific, 114},
         {powerlevel, 115},
@@ -340,8 +377,9 @@ classes() ->
 -include_lib("eunit/include/eunit.hrl").
 
 learn_test() ->
-    T1 = learn([a,b,c], 1, #node{}),
-    T2 = learn([a,b,d], 2, T1),
+    {T1, true} = learn([a,b,c], 1, #node{}),
+    {T2, true} = learn([a,b,d], 2, T1),
+    {_, false} = learn([a,b,d], 2, T2),
     #node{subs =
         #{a := #node{subs =
             #{b := #node{subs =
