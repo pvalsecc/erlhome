@@ -25,9 +25,9 @@ start_link(SchemaId, Id) ->
 init(_Args) ->
     {[false], #state{}}.
 
-new_inputs([D, true], _OldOutputs, #state{prev_clock = false} = State) ->
+new_inputs([D, true], _OldInputs, #state{prev_clock = false} = State) ->
     {new_outputs, [D], State#state{value = D, prev_clock = true}};
-new_inputs([_D, Clock], _OldOutputs, #state{value = Value} = State) ->
+new_inputs([_D, Clock], _OldInputs, #state{value = Value} = State) ->
     {new_outputs, [Value], State#state{prev_clock = Clock}}.
 
 iterate_status(_Callback, Acc, _Inner) ->

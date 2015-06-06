@@ -37,7 +37,7 @@ init({SchemaId, Id}) ->
     ehome_dispatcher:publish([status, switch, SchemaId, Id], false),
     {[false], #state{schema_id = SchemaId, id = Id}}.
 
-new_inputs(_Inputs, _OldOutputs, _State) ->
+new_inputs(_Inputs, _OldInputs, _State) ->
     %no input => should not be called
     erlang:error(not_implemented).
 

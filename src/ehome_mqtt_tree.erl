@@ -23,7 +23,7 @@
     code_change/3]).
 
 -record(node, {
-    value = undefined :: atom(),
+    value = undefined :: any(),
     subs = #{}:: #{any() => #node{}}
 }).
 
@@ -116,6 +116,7 @@ handle_cast({from_mqtt, TopicRaw, MessageRaw}, State) ->
 handle_cast({to_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
     TopicMqtt = build_topic_name(Topic),
     Message = erlang2mqtt(Value),
+    lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
     mqtt_client:publish(Mqtt, TopicMqtt, Message),
     {noreply, State};
 handle_cast(dump, #state{root = Root} = State) ->
@@ -229,14 +230,14 @@ from_mqtt(["zwave", "get", "devices", Device, "instances", Instance,
     Path = to_path(Device, Instance, Class, Rest),
     case learn(Path, Message, Root) of
         {NewRoot, true} ->
-            io:format("~p = ~p~n", [Path, Message]),
+            lager:debug("~p = ~p", [Path, Message]),
             ehome_dispatcher:publish([mqtt, get | Path], Message),
             State#state{root = NewRoot};
         {_, false} ->
             State
     end;
 from_mqtt(Unknown, Message, State) ->
-    io:format("Unknown message: ~p = ~p~n", [Unknown, Message]),
+    lager:warning("Unknown message: ~p = ~p", [Unknown, Message]),
     State.
 
 build_topic_name([Device, Instance, Class | Rest]) ->

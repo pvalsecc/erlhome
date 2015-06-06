@@ -15,7 +15,7 @@
 
 -callback init(Args :: any()) -> {Outputs :: [boolean()], State :: any()}.
 
--callback new_inputs(Inputs :: [boolean()], OldOutputs :: list(boolean()),
+-callback new_inputs(Inputs :: [boolean()], OldInputs :: [boolean()],
                      State :: any()) ->
     NewInner :: any() |
     {new_outputs, NewOutputs :: [boolean()], NewInner :: any()}.
@@ -185,7 +185,7 @@ handle_call({control, Type, Message}, _From,
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({set_input, Index, Value}, #state{input_values = Inputs} = State) ->
     NewInputs = replace_list(Inputs, Index, Value),
-    handle_inputs(State#state{input_values = NewInputs});
+    handle_inputs(State#state{input_values = NewInputs}, Inputs);
 
 handle_cast({new_outputs, NewOutputs}, #state{inner_state = Inner} = State) ->
     handle_new_outputs(NewOutputs, Inner, State);
@@ -263,16 +263,19 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+handle_new_outputs(Outputs, NewInner, #state{output_values = Outputs} = State) ->
+    %no output changes
+    {noreply, State#state{inner_state = NewInner}};
 handle_new_outputs(NewOutputs, NewInner,
         #state{id = Id, output_values = Outputs, output_connections = Connections} =
             State) ->
-    io:format("~p: output=~w~n", [Id, NewOutputs]),
+    lager:debug("~p: output=~w", [Id, NewOutputs]),
     notify(Outputs, NewOutputs, Connections, State),
     {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
 
 handle_inputs(#state{implementation = Impl, input_values = Inputs,
-    output_values = Outputs, inner_state = Inner} = State) ->
-    case Impl:new_inputs(Inputs, Outputs, Inner) of
+        inner_state = Inner} = State, OldInputs) ->
+    case Impl:new_inputs(Inputs, OldInputs, Inner) of
         {new_outputs, NewOutputs, NewInner} ->
             handle_new_outputs(NewOutputs, NewInner, State);
         NewInner ->

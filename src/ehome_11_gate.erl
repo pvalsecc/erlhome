@@ -32,7 +32,7 @@ start_link(SchemaId, Id, Fun) ->
 init([Fun]) ->
     {[true], #state{function = Fun}}.
 
-new_inputs([A], _OldOutputs, #state{function = Fun} = State) ->
+new_inputs([A], _OldInputs, #state{function = Fun} = State) ->
     {new_outputs, [Fun(A)], State}.
 
 iterate_status(_Callback, Acc, _Inner) ->

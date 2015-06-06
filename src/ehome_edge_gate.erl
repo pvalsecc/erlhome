@@ -43,7 +43,7 @@ start_link(SchemaId, Id, Trigger) ->
 init(Trigger) ->
     {[false], #state{trigger = Trigger}}.
 
-new_inputs([Input], _OldOutputs, State) ->
+new_inputs([Input], _OldInputs, State) ->
     case is_edge(Input, State) of
         true ->
             % triggering the timer

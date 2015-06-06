@@ -34,7 +34,7 @@ init({SchemaId, Id}) ->
     ehome_dispatcher:publish([status, relay, SchemaId, Id], false),
     {[], #state{schema_id = SchemaId, id = Id}}.
 
-new_inputs([Input], _OldOutputs,
+new_inputs([Input], _OldInputs,
         #state{schema_id = SchemaId, id = Id} = State) ->
     ehome_dispatcher:publish([status, relay, SchemaId, Id], Input),
     State#state{status = Input}.

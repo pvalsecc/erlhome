@@ -71,7 +71,7 @@ unsubscribe(SubscribeId) ->
 
 -spec(publish(Path :: path(), Value :: any()) -> ok).
 publish(Path, Value) ->
-    gen_server:call(?SERVER, {publish, Path, Value}).
+    gen_server:cast(?SERVER, {publish, Path, Value}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -113,9 +113,6 @@ handle_call({subscribe, Path, SubscribeId, Listener}, _From, State) ->
     {reply, ok, subscribe(Path, SubscribeId, Listener, State)};
 handle_call({unsubscribe, SubscribeId}, _From, State) ->
     {reply, ok, unsubscribe(SubscribeId, State)};
-handle_call({publish, Path, Value}, _From, State) ->
-    publish(Path, Value, State),
-    {reply, ok, State};
 handle_call(stop, _From, State) ->  %UTs only
     {stop, normal, ok, State};
 handle_call(sync, _From, State) ->  %UTs only
@@ -132,6 +129,10 @@ handle_call(sync, _From, State) ->  %UTs only
     {noreply, NewState :: #node{}} |
     {noreply, NewState :: #node{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #node{}}).
+handle_cast({publish, Path, Value}, State) ->
+    lager:debug("publish ~p = ~p", [Path, Value]),
+    publish(Path, Value, State),
+    {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
 

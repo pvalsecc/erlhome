@@ -18,5 +18,7 @@
     <orderEntry type="module" module-name="cowboy" />
     <orderEntry type="module" module-name="mixer" />
     <orderEntry type="module" module-name="jiffy" />
+    <orderEntry type="module" module-name="mqtt_server" />
+    <orderEntry type="module" module-name="lager" />
   </component>
 </module>

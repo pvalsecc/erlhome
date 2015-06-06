@@ -31,26 +31,26 @@ init(#{<<"delay">> := Delay}) ->
 init(_) ->
     {[false], #state{delay = 2000}}.
 
-new_inputs([false, false], _OldOutputs, State) ->
+new_inputs([false, false], _OldInputs, State) ->
     State;
 
-new_inputs([true, false], _OldOutputs,
+new_inputs([true, false], _OldInputs,
         #state{delay = 0, waiting = false} = State) ->
     % special case for delay = 0
     {new_outputs, [true], State};
 
-new_inputs([true, false], _OldOutputs,
+new_inputs([true, false], _OldInputs,
         #state{delay = Delay, waiting = false} = State) ->
     % triggering the timer
     {ok, TRef} = timer:apply_after(Delay,
         ehome_element, new_outputs, [self(), [true]]),
     State#state{waiting = TRef};
 
-new_inputs([true, false], _OldOutputs, State) ->
+new_inputs([true, false], _OldInputs, State) ->
     % already triggered
     State;
 
-new_inputs([_, true], _OldOutputs, #state{waiting = TRef} = State) ->
+new_inputs([_, true], _OldInputs, #state{waiting = TRef} = State) ->
     % reset
     maybe_cancel(TRef),
     {new_outputs, [false], State#state{waiting = false}}.
@@ -58,7 +58,7 @@ new_inputs([_, true], _OldOutputs, #state{waiting = TRef} = State) ->
 iterate_status(_Callback, Acc, _Inner) ->
     Acc.
 
-control(<<"config">>, #{<<"delay">> := Delay}, State) ->
+control(config, #{<<"delay">> := Delay}, State) ->
     State#state{delay = Delay};
 control(Type, Message, _Inner) ->
     io:format("ehome_timer_gate: un-supported message ~p/~p~n",

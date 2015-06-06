@@ -204,7 +204,10 @@ get_start_func(SchemaId, #element{id = Id, type = <<"force_off">>}) ->
     {ehome_force_off, start_link, [SchemaId, Id]};
 get_start_func(SchemaId, #element{id = Id, type = <<"timer">>,
     config = Config}) ->
-    {ehome_timer_gate, start_link, [SchemaId, Id, Config]}.
+    {ehome_timer_gate, start_link, [SchemaId, Id, Config]};
+get_start_func(SchemaId, #element{id = Id, type = <<"module">>,
+    config = Config}) ->
+    {ehome_module, start_link, [SchemaId, Id, Config]}.
 
 pid_from_id(Id, #state{elements = Elements}) ->
     case lists:keyfind(Id, #element_mapping.id, Elements) of
@@ -230,10 +233,15 @@ handle_event([db, update, element, _SchemaId, _Id],
     %No config change, nothing to do
     State;
 
-handle_event([db, update, element, _SchemaId, Id],
-    {#element{config = NewConfig}, _OldElement}, State) ->
+handle_event([db, update, element, SchemaId, Id],
+    {#element{config = NewConfig}, OldElement}, State) ->
     Pid = pid_from_id(Id, State),
-    ehome_element:control(Pid, <<"config">>, NewConfig),
+    case ehome_element:control(Pid, config, NewConfig) of
+        false ->
+            %TODO: send error to web
+            ehome_db:update_element(SchemaId, Id, OldElement);
+        _ -> ok
+    end,
     State;
 
 handle_event([db, delete, element, _SchemaId, Id], #element{}, State) ->

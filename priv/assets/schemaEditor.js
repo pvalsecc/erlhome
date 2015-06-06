@@ -75,6 +75,7 @@ function createBox11Class(type, text) {
 createBox21Class('Timer', 'start\nreset');
 createBox21Class('DFlipFlop', 'D\nclock');
 createBox21Class('ForceOff', 'in\noff');
+createBox21Class('Module', 'on\noff');
 createBox11Class('UpEdge', 'up edge');
 createBox11Class('DownEdge', 'down edge');
 createBox11Class('BothEdge', 'both edge');
@@ -91,7 +92,8 @@ var TYPE2SHAPE = {
     up_edge: joint.shapes.logic.UpEdge,
     down_edge: joint.shapes.logic.DownEdge,
     both_edge: joint.shapes.logic.BothEdge,
-    force_off: joint.shapes.logic.ForceOff
+    force_off: joint.shapes.logic.ForceOff,
+    module: joint.shapes.logic.Module
 };
 
 function graphId(id) {
@@ -263,9 +265,10 @@ function handleNotif(graph, paper, message) {
     }
 }
 
-function displayTimerForm(graph, element) {
+
+function displayForm(graph, element, title, items) {
     var form = new Ext.form.Panel({
-        title: 'Timer params',
+        title: title,
         defaults: {
             padding: 10,
         },
@@ -273,11 +276,7 @@ function displayTimerForm(graph, element) {
         draggable: true,
         closable: true,
         defaultType: 'numberfield',
-        items: [{
-            fieldLabel: 'Delay [ms]',
-            name: 'delay',
-            minValue: 0
-        }],
+        items: items,
         buttons: [{
             text: 'Save',
             handler: function() {
@@ -294,6 +293,24 @@ function displayTimerForm(graph, element) {
     form.show();
 }
 
+
+function displayTimerForm(graph, element) {
+    displayForm(graph, element, 'Timer params', [{
+        fieldLabel: 'Delay [ms]',
+        name: 'delay',
+        minValue: 0
+    }]);
+}
+
+function displayModuleForm(graph, element) {
+    displayForm(graph, element, 'Module params', [{
+        xtype: 'textfield',
+        fieldLabel: 'MQTT path',
+        name: 'mqtt_path'
+    }]);
+}
+
+
 function handleClick(graph, cell) {
     var element = cell.model.attributes.element;
     if(!element) return;
@@ -305,8 +322,10 @@ function handleClick(graph, cell) {
             headers: {'Content-Type': 'application/json'},
             jsonData: true
         });
-    } if(type == 'timer') {
+    } else if(type == 'timer') {
         displayTimerForm(graph, element);
+    } else if(type == 'module') {
+        displayModuleForm(graph, element);
     }
 }
 

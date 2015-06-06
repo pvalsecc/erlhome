@@ -37,4 +37,5 @@ stop(_State) ->
     ok.
 
 boot() ->
-    application:ensure_all_started(erlhome).
+    application:ensure_all_started(erlhome),
+    lager:set_loglevel(lager_console_backend, debug).
