@@ -50,6 +50,7 @@ stop() ->
     gen_server:call(?SERVER, stop).
 
 get_events() ->
+    ehome_dispatcher:sync(),
     gen_server:call(?SERVER, get_events).
 
 %%%===================================================================

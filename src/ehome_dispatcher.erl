@@ -32,6 +32,10 @@
     terminate/2,
     code_change/3]).
 
+%% Tests only
+-export([sync/0]).
+
+
 -define(SERVER, ?MODULE).
 
 -type node_id() :: integer() | binary() | any | all | atom().
@@ -72,6 +76,13 @@ unsubscribe(SubscribeId) ->
 -spec(publish(Path :: path(), Value :: any()) -> ok).
 publish(Path, Value) ->
     gen_server:cast(?SERVER, {publish, Path, Value}).
+
+%% @doc
+%% Make sure the dispatcher has processed every events by sending a synchronous
+%% message
+%% @end
+sync() ->
+    gen_server:call(?SERVER, sync).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -263,13 +274,6 @@ subscribe_recorder(SubPath) ->
         Recorder ! {record, {Path, Value}}
     end),
     Recorder.
-
-%% @doc
-%% Make sure the dispatcher has processed every events by sending a synchronous
-%% message
-%% @end
-sync() ->
-    gen_server:call(?SERVER, sync).
 
 stop() ->
     gen_server:call(?SERVER, stop).
