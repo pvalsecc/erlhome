@@ -78,6 +78,10 @@ init([]) ->
         fun([mqtt, set | Topic], Value) ->
             gen_server:cast(Self, {to_mqtt, Topic, Value})
         end),
+    ehome_dispatcher:subscribe([mqtt, control, all], self(),
+        fun([mqtt, control | Topic], Value) ->
+            gen_server:cast(Self, {control_mqtt, Topic, Value})
+        end),
     {ok, #state{mqtt = Mqtt}}.
 
 %%--------------------------------------------------------------------
@@ -117,6 +121,12 @@ handle_cast({to_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
     TopicMqtt = build_topic_name(Topic),
     Message = erlang2mqtt(Value),
     lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
+    mqtt_client:publish(Mqtt, TopicMqtt, Message),
+    {noreply, State};
+handle_cast({control_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
+    TopicMqtt = build_control_name(Topic),
+    Message = erlang2mqtt(Value),
+    lager:info("controlMQTT: ~s = ~p", [TopicMqtt, Value]),
     mqtt_client:publish(Mqtt, TopicMqtt, Message),
     {noreply, State};
 handle_cast(dump, #state{root = Root} = State) ->
@@ -244,6 +254,10 @@ build_topic_name([Device, Instance, Class | Rest]) ->
     List = ["zwave", "set", "devices", integer_to_list(Device),
             "instances", integer_to_list(Instance), "commandClasses",
             name2class(Class), "data" | Rest],
+    string:join(List, "/").
+
+build_control_name([Command]) ->
+    List = ["zwave", "control", Command],
     string:join(List, "/").
 
 to_path(Device, Instance, Class, Rest) ->
