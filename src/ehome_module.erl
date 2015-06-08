@@ -46,7 +46,7 @@ control(config, #{<<"mqtt_path">> := MqttPath}, State) ->
     end;
 control(switch, Value, #state{status = Value} = State) ->
     State; %no change
-control(switch, Value, #state{status = Value} = State) when is_boolean(Value) ->
+control(switch, Value, State) when is_boolean(Value) ->
     %comes from MQTT
     lager:info("Update from MQTT: ~p", [Value]),
     {new_outputs, [Value], notif_web(State#state{status = Value})};
