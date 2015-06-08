@@ -184,6 +184,7 @@ function updateConnection(graph, link) {
         model.set("vertices", vertices);
     }
     link.attributes.con.graphLink = link;
+    graph.commitChanges();
 }
 
 function removeItem(graph, item) {
@@ -334,11 +335,16 @@ function createSchema(name, grid) {
     graph.statusCache = {};
 
     var delay = new Ext.util.DelayedTask(function(){
-        if(graph.elementStore) graph.elementStore.sync({
-            callback: function() {
+        if(graph.elementStore) {
+            graph.elementStore.sync({
+                callback: function() {
+                    if(graph.connectionStore) graph.connectionStore.sync();
+             }
+            });
+            if(!graph.elementStore.isSyncing) {
                 if(graph.connectionStore) graph.connectionStore.sync();
             }
-        });
+        }
     });
     graph.commitChanges = function() {
         delay.delay(200);
