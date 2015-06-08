@@ -86,22 +86,17 @@ fake_switch(DeviceId, InstanceId, Value) when is_boolean(Value) ->%for test only
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
 init([]) ->
-    Self = self(),
+    erlang:process_flag(trap_exit, true),
     Mqtt = case application:get_env(erlhome, enable_mqtt, true) of
-        true ->
-            Con = mqtt_client:connect(),
-            mqtt_client:subscribe(Con, "zwave/get/#", fun(Topic, Message) ->
-                gen_server:cast(Self, {from_mqtt, Topic, Message})
-            end),
-            Con;
-        false ->
-            undefined
+        true -> connect_mqtt();
+        false -> undefined
     end,
-    ehome_dispatcher:subscribe([mqtt, set, all], self(),
+    Self = self(),
+    ehome_dispatcher:subscribe([mqtt, set, all], Self,
         fun([mqtt, set | Topic], Value) ->
             gen_server:cast(Self, {to_mqtt, Topic, Value})
         end),
-    ehome_dispatcher:subscribe([mqtt, control, all], self(),
+    ehome_dispatcher:subscribe([mqtt, control, all], Self,
         fun([mqtt, control | Topic], Value) ->
             gen_server:cast(Self, {control_mqtt, Topic, Value})
         end),
@@ -175,7 +170,11 @@ handle_cast(Request, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_info(_Info, State) ->
+handle_info({'EXIT', _From, Reason}, State) ->
+    lager:warning("Lost MQTT client (~s)", [Reason]),
+    {noreply, State#state{mqtt = retry_connect_mqtt()}};
+handle_info(Info, State) ->
+    lager:warning("Unkwnown event: ~p", [Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -192,7 +191,7 @@ handle_info(_Info, State) ->
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
     State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
-    ok.
+    ehome_dispatcher:unsubscribe(self()).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -401,3 +400,21 @@ classes() ->
         {mark, 239},
         {non_interoperable, 240}
     ].
+
+connect_mqtt() ->
+    Self = self(),
+    Mqtt = mqtt_client:connect(),
+    ok = mqtt_client:subscribe(Mqtt, "zwave/get/#", fun(Topic, Message) ->
+        gen_server:cast(Self, {from_mqtt, Topic, Message})
+    end),
+    Mqtt.
+
+retry_connect_mqtt() ->
+    lager:warning("Re-try to connect MQTT in 2s"),
+    timer:sleep(2*1000),
+    try
+        connect_mqtt(),
+        lager:warning("Connection with MQTT re-established")
+    catch
+        _:_ -> retry_connect_mqtt()
+    end .
