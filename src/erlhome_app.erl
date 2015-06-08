@@ -20,13 +20,14 @@ start(_StartType, _StartArgs) ->
             {"/controls/:type/:element_id", [{element_id, int}],
                 ehome_rest_controls, []},
             {"/notifs", ehome_ws_notifs, []},
-            {"/", cowboy_static, {priv_file, erlhome, "assets/index.html"}},
+            {"/", cowboy_static, {priv_file, erlhome, "assets/index.html",
+                [{mimetypes, cow_mimetypes, all}]}},
             {"/[...]", cowboy_static, {priv_dir, erlhome, "assets",
-                [{mimetypes, cow_mimetypes, all}]}}
+                [{mimetypes, cow_mimetypes, all}]}} %TODO: figure out how to set charset to UTF-8
 
         ]}
     ]),
-    {ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+    {ok, _} = cowboy:start_http(http, 5, [{port, 8080}], [
         {env, [{dispatch, Dispatch}]}
     ]),
     EnablePersistency =

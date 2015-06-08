@@ -50,9 +50,10 @@ control(switch, Value, State) when is_boolean(Value) ->
     %comes from MQTT
     lager:info("Update from MQTT: ~p", [Value]),
     {new_outputs, [Value], notif_web(State#state{status = Value})};
+control(<<"toggle">>, true, #state{status = Value} = State) ->
+    force(State, not Value);
 control(Type, Message, _Inner) ->
-    lager:error("ehome_module: un-supported message ~p/~p",
-        [Type, Message]),
+    lager:error("ehome_module: un-supported message ~p/~p", [Type, Message]),
     false.
 
 subscribe(undefined) ->

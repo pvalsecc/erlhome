@@ -75,7 +75,7 @@ function createBox11Class(type, text) {
 createBox21Class('Timer', 'start\nreset');
 createBox21Class('DFlipFlop', 'D\nclock');
 createBox21Class('ForceOff', 'in\noff');
-createBox21Class('Module', 'on\noff');
+createBox21Class('Module', 'on↑\noff↑');
 createBox11Class('UpEdge', 'up edge');
 createBox11Class('DownEdge', 'down edge');
 createBox11Class('BothEdge', 'both edge');
@@ -316,18 +316,47 @@ function handleClick(graph, cell) {
     var element = cell.model.attributes.element;
     if(!element) return;
     var type = element.get("type");
-    if(type == 'switch') {
+    if(type == 'switch' || type == 'module') {
         Ext.Ajax.request({
             url: '/controls/toggle/' + element.get('id'),
             method : "PUT",
             headers: {'Content-Type': 'application/json'},
             jsonData: true
         });
-    } else if(type == 'timer') {
-        displayTimerForm(graph, element);
-    } else if(type == 'module') {
-        displayModuleForm(graph, element);
     }
+}
+
+function showContextMenu(graph, cell) {
+    var items = [{
+        text: 'Delete',
+        iconCls: 'delete',
+        handler: function() {
+            graph.removingElement = true;
+            cell.model.remove();  //will notify removeItem
+            graph.removingElement = false;
+        }
+    }];
+    var element = cell.model.attributes.element;
+    if(element) {
+        var type = element.get("type");
+        var editor;
+        if(type == 'timer') {
+            editor = displayTimerForm;
+        } else if(type == 'module') {
+            editor = displayModuleForm;
+        }
+        if(editor) {
+            items.push({
+                text: 'Edit',
+                iconCls: 'edit',
+                handler: function() {editor(graph, element);}
+            });
+        }
+    }
+    var contextMenu = new Ext.menu.Menu({
+        items: items
+    });
+    contextMenu.showAt(event.x - 10, event.y - 10);
 }
 
 function createSchema(name, grid) {
@@ -433,9 +462,7 @@ function createSchema(name, grid) {
                 });
                 paper.on('cell:pointerup', function(cell, event) {
                     if(event.button >= 2 && !cell.model.isLink()) {
-                        graph.removingElement = true;
-                        cell.model.remove();  //will notify removeItem
-                        graph.removingElement = false;
+                        showContextMenu(graph, cell, event);
                     }
                 });
             }
