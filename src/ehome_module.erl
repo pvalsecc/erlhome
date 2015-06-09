@@ -25,7 +25,8 @@ start_link(SchemaId, Id, Config) ->
         {SchemaId, Id, Config}).
 
 init({SchemaId, Id, Config}) ->
-    MqttPath = subscribe(parse_path(maps:get(<<"mqtt_path">>, Config, undefined))),
+    MqttPath = subscribe(ehome_utils:parse_path(maps:get(<<"mqtt_path">>,
+        Config, undefined))),
     State = #state{schema_id = SchemaId, id = Id, mqtt_path = MqttPath},
     {[false], State}.
 
@@ -40,7 +41,7 @@ iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
     Callback(#status{type = switch, id = Id, value = Status}, Acc).
 
 control(config, #{<<"mqtt_path">> := MqttPath}, State) ->
-    case subscribe(parse_path(MqttPath)) of
+    case subscribe(ehome_utils:parse_path(MqttPath)) of
         undefined -> false;
         NewMqttPath -> State#state{mqtt_path = NewMqttPath}
     end;
@@ -65,27 +66,6 @@ subscribe(Path) ->
         ehome_element:control(Self, switch, Value)
     end),
     Path.
-
-parse_path(undefined) ->
-    undefined;
-parse_path(Path) when is_binary(Path) ->
-    parse_path(binary_to_list(Path));
-parse_path(Path) when is_list(Path) ->
-    case erl_scan:string(Path ++ ".") of
-        {ok, Tokens, _} -> case erl_parse:parse_term(Tokens) of
-                               {ok, Val} when is_list(Val) ->
-                                   Val;
-                               {ok, Val} ->
-                                   lager:error("Not a list: ~p", [Val]),
-                                   undefined;
-                               {error, Reason} ->
-                                   lager:error("Cannot parse <~s>: ~p", [Path, Reason]),
-                                   undefined
-                           end;
-        {error, ErrorInfo, _} ->
-            lager:error("Cannot tokenize <~s>: ~p", [Path, ErrorInfo]),
-            undefined
-    end.
 
 force(#state{status = Value} = State, Value) ->
     State; %no value change

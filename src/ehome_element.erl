@@ -97,7 +97,8 @@ stop(Gate) ->
 iterate_status(Gate, Callback, Acc) ->
     gen_server:call(Gate, {iterate_status, Callback, Acc}).
 
--spec(control(Gate :: pid(), Type :: binary(), Message :: any()) -> true|false).
+-spec(control(Gate :: pid(), Type :: binary() | atom(), Message :: any()) ->
+    true|false).
 control(Gate, Type, Message) ->
     gen_server:call(Gate, {control, Type, Message}).
 

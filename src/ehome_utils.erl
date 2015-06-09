@@ -10,7 +10,31 @@
 -author("patrick").
 
 %% API
--export([id2str/1]).
+-export([id2str/1, parse_path/1]).
 
 id2str(Id) ->
     binary:list_to_bin(integer_to_list(Id)).
+
+
+-spec parse_path(undefined | binary() | string()) ->
+    undefined | [any()].
+parse_path(undefined) ->
+    undefined;
+parse_path(Path) when is_binary(Path) ->
+    parse_path(binary_to_list(Path));
+parse_path(Path) when is_list(Path) ->
+    case erl_scan:string(Path ++ ".") of
+        {ok, Tokens, _} -> case erl_parse:parse_term(Tokens) of
+                               {ok, Val} when is_list(Val) ->
+                                   Val;
+                               {ok, Val} ->
+                                   lager:error("Not a list: ~p", [Val]),
+                                   undefined;
+                               {error, Reason} ->
+                                   lager:error("Cannot parse <~s>: ~p", [Path, Reason]),
+                                   undefined
+                           end;
+        {error, ErrorInfo, _} ->
+            lager:error("Cannot tokenize <~s>: ~p", [Path, ErrorInfo]),
+            undefined
+    end.

@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, dump/0]).
+-export([start_link/0, dump/0, iterate/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -47,8 +47,14 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-type iterator() :: fun(({start, Key :: any(), Value :: any()} |
+                         {stop, Key :: any()}, Acc :: any()) -> any()).
+-spec iterate(iterator(), Acc :: any()) -> any().
+iterate(Iterator, Acc) ->
+    gen_server:call(?MODULE, {iterate, Iterator, Acc}).
+
 dump() ->
-    gen_server:cast(?MODULE, dump).
+    iterate(fun dumper/2, "").
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -99,6 +105,9 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
+handle_call({iterate, Iterator, Acc}, _From, #state{root = Root} = State) ->
+    #node{subs = Subs} = Root,
+    {reply, iterate_subs(Iterator, Acc, Subs), State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -128,9 +137,6 @@ handle_cast({control_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
     Message = erlang2mqtt(Value),
     lager:info("controlMQTT: ~s = ~p", [TopicMqtt, Value]),
     mqtt_client:publish(Mqtt, TopicMqtt, Message),
-    {noreply, State};
-handle_cast(dump, #state{root = Root} = State) ->
-    dump(Root, ""),
     {noreply, State};
 handle_cast(_Request, State) ->
     {noreply, State}.
@@ -194,13 +200,6 @@ learn([H|Rest], Value, #node{subs = Subs} = Root) ->
     Sub = maps:get(H, Subs, #node{}),
     {NewSub, Changed} = learn(Rest, Value, Sub),
     {Root#node{subs = maps:put(H, NewSub, Subs)}, Changed}.
-
-dump(#node{subs = Subs}, Indent) ->
-    NewIndent = "  " ++ Indent,
-    maps:fold(fun(Key, #node{value = Value} = Node, _Acc) ->
-        io:format("~s~p = ~p~n", [Indent, Key, Value]),
-        dump(Node, NewIndent)
-    end, ok, Subs).
 
 mqtt2erlang(<<0:8>>) ->
     empty;
@@ -286,6 +285,25 @@ name2class(Name) when is_integer(Name) ->
      integer_to_list(Name);
 name2class(Name) when is_list(Name) ->
     Name.
+
+iterate(Iterator, Acc, Name, #node{value = Value, subs = Subs}) ->
+    Acc1 = Iterator({start, Name, Value}, Acc),
+    Acc2 = iterate_subs(Iterator, Acc1, Subs),
+    Iterator({stop, Name}, Acc2).
+
+iterate_subs(Iterator, Acc, #{} = Subs) ->
+    iterate_subs(Iterator, Acc, maps:to_list(Subs));
+iterate_subs(_Iterator, Acc, []) ->
+    Acc;
+iterate_subs(Iterator, Acc, [{Name, Sub} | Rest]) ->
+    Acc1 = iterate(Iterator, Acc, Name, Sub),
+    iterate_subs(Iterator, Acc1, Rest).
+
+dumper({start, Name, Value}, Indent) ->
+    io:format("~s~p = ~p~n", [Indent, Name, Value]),
+    "    " ++ Indent;
+dumper({stop, _Name}, [_, _, _, _ | Acc]) ->
+    Acc.
 
 classes() ->
     [
@@ -403,3 +421,22 @@ learn_test() ->
             }}
         }}
     } = T2.
+
+iterate_sub_test() ->
+    {T1, _} = learn([a,b], 1, #node{}),
+    {T2, _} = learn([a,d], 2, T1),
+    {T3, _} = learn([e], 3, T2),
+    Calls = iterate(fun(Call, Acc) -> [Call | Acc] end, [], root, T3),
+    Expected = [
+        {start, root, undefined},
+        {start, a, undefined},
+        {start, b, 1},
+        {stop, b},
+        {start, d, 2},
+        {stop, d},
+        {stop, a},
+        {start, e, 3},
+        {stop, e},
+        {stop, root}
+    ],
+    Expected = lists:reverse(Calls).
