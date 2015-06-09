@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, dump/0, iterate/2]).
+-export([start_link/0, dump/0, iterate/2, noop_iterator/2, list_filter/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -47,14 +47,24 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--type iterator() :: fun(({start, Key :: any(), Value :: any()} |
-                         {stop, Key :: any()}, Acc :: any()) -> any()).
+-type iterator() ::
+    fun(({start, Key :: any(), Value :: any()} | {stop, Key :: any()}) ->
+        {iterator(), any()}).
+
 -spec iterate(iterator(), Acc :: any()) -> any().
 iterate(Iterator, Acc) ->
     gen_server:call(?MODULE, {iterate, Iterator, Acc}).
 
 dump() ->
     iterate(fun dumper/2, "").
+
+noop_iterator(_, Acc) ->
+    {undefined, Acc}.
+
+list_filter(Filter) ->
+    {FilterIt, FilterAcc} = create_filter_iterator(Filter),
+    {[], [], Filter, Result} = iterate(FilterIt, FilterAcc),
+    lists:reverse(Result).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -76,10 +86,15 @@ dump() ->
     {stop, Reason :: term()} | ignore).
 init([]) ->
     Self = self(),
-    Mqtt = mqtt_client:connect(),
-    mqtt_client:subscribe(Mqtt, "zwave/get/#", fun(Topic, Message) ->
-        gen_server:cast(Self, {from_mqtt, Topic, Message})
-    end),
+    Mqtt = case application:get_env(erlhome, enable_mqtt, true) of
+        true ->
+            Con = mqtt_client:connect(),
+            mqtt_client:subscribe(Con, "zwave/get/#", fun(Topic, Message) ->
+                gen_server:cast(Self, {from_mqtt, Topic, Message})
+            end);
+        false ->
+            undefined
+    end,
     ehome_dispatcher:subscribe([mqtt, set, all], self(),
         fun([mqtt, set | Topic], Value) ->
             gen_server:cast(Self, {to_mqtt, Topic, Value})
@@ -108,7 +123,10 @@ init([]) ->
 handle_call({iterate, Iterator, Acc}, _From, #state{root = Root} = State) ->
     #node{subs = Subs} = Root,
     {reply, iterate_subs(Iterator, Acc, Subs), State};
-handle_call(_Request, _From, State) ->
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State};
+handle_call(Request, _From, State) ->
+    lager:error("Unknown handle_call: ~p", [Request]),
     {reply, ok, State}.
 
 %%--------------------------------------------------------------------
@@ -122,23 +140,21 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({from_mqtt, TopicRaw, MessageRaw}, State) ->
+handle_cast({from_mqtt, TopicRaw, Value}, State) ->
     Topic = split_topic_name(TopicRaw),
-    Message = mqtt2erlang(MessageRaw),
-    {noreply, from_mqtt(Topic, Message, State)};
-handle_cast({to_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
+    {noreply, from_mqtt(Topic, Value, State)};
+handle_cast({to_mqtt, Topic, Value}, State) ->
     TopicMqtt = build_topic_name(Topic),
-    Message = erlang2mqtt(Value),
-    lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
-    mqtt_client:publish(Mqtt, TopicMqtt, Message),
+    publish(TopicMqtt, Value, State),
     {noreply, State};
-handle_cast({control_mqtt, Topic, Value}, #state{mqtt = Mqtt} = State) ->
+handle_cast({control_mqtt, Topic, Value}, State) ->
     TopicMqtt = build_control_name(Topic),
     Message = erlang2mqtt(Value),
     lager:info("controlMQTT: ~s = ~p", [TopicMqtt, Value]),
-    mqtt_client:publish(Mqtt, TopicMqtt, Message),
+    publish(TopicMqtt, Message, State),
     {noreply, State};
-handle_cast(_Request, State) ->
+handle_cast(Request, State) ->
+    lager:error("Unknown handle_cast: ~p", [Request]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -286,10 +302,14 @@ name2class(Name) when is_integer(Name) ->
 name2class(Name) when is_list(Name) ->
     Name.
 
+maybe(undefined, A) -> A;
+maybe(A, _) -> A.
+
 iterate(Iterator, Acc, Name, #node{value = Value, subs = Subs}) ->
-    Acc1 = Iterator({start, Name, Value}, Acc),
-    Acc2 = iterate_subs(Iterator, Acc1, Subs),
-    Iterator({stop, Name}, Acc2).
+    {SubIterator, Acc1} =  Iterator({start, Name, Value}, Acc),
+    Acc2 = iterate_subs(maybe(SubIterator, Iterator), Acc1, Subs),
+    {_, Acc3} = Iterator({stop, Name}, Acc2),
+    Acc3.
 
 iterate_subs(Iterator, Acc, #{} = Subs) ->
     iterate_subs(Iterator, Acc, maps:to_list(Subs));
@@ -301,9 +321,46 @@ iterate_subs(Iterator, Acc, [{Name, Sub} | Rest]) ->
 
 dumper({start, Name, Value}, Indent) ->
     io:format("~s~p = ~p~n", [Indent, Name, Value]),
-    "    " ++ Indent;
+    {fun dumper/2, "    " ++ Indent};
 dumper({stop, _Name}, [_, _, _, _ | Acc]) ->
-    Acc.
+    {undefined, Acc}.
+
+publish(_TopicMqtt, _Value, #state{mqtt = undefined}) ->
+    lager:warning("toMqtt: no connection");
+publish(TopicMqtt, Value, #state{mqtt = Mqtt}) ->
+    lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
+    Message = mqtt2erlang(Value),
+    mqtt_client:publish(Mqtt, TopicMqtt, Message).
+
+apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
+    NextPath = [Name|CurPath],
+    NextResults = case FHead of
+                  any -> [lists:reverse(NextPath)|Results];
+                  Name -> [lists:reverse(NextPath)|Results];
+                  _ -> Results
+              end,
+    {fun ehome_mqtt_tree:noop_iterator/2,
+        {NextPath, [FHead|PrevFilters], [], NextResults}};
+apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results} = Acc) ->
+    case FHead of
+        any ->
+            {undefined, {[Name|CurPath], [FHead|PrevFilters], FRest, Results}};
+        Name ->
+            {undefined, {[Name|CurPath], [FHead|PrevFilters], FRest, Results}};
+        _ ->
+            {fun ehome_mqtt_tree:noop_iterator/2, Acc}
+    end.
+
+create_filter_iterator(Filter) ->
+    {
+        fun({start, Name, _Value}, Acc) ->
+            apply_filter(Name, Acc);
+        ({stop, Name},
+                {[Name | CurPath], [FHead|PrevFilters], FRest, Results}) ->
+            {undefined, {CurPath, PrevFilters, [FHead|FRest], Results}}
+        end,
+        {[], [], Filter, []}
+    }.
 
 classes() ->
     [
@@ -422,11 +479,12 @@ learn_test() ->
         }}
     } = T2.
 
-iterate_sub_test() ->
+simple_iterate_sub_test() ->
     {T1, _} = learn([a,b], 1, #node{}),
     {T2, _} = learn([a,d], 2, T1),
     {T3, _} = learn([e], 3, T2),
-    Calls = iterate(fun(Call, Acc) -> [Call | Acc] end, [], root, T3),
+    Calls = iterate(fun(Call, Acc) -> {undefined, [Call | Acc]} end, [], root,
+        T3),
     Expected = [
         {start, root, undefined},
         {start, a, undefined},
@@ -440,3 +498,36 @@ iterate_sub_test() ->
         {stop, root}
     ],
     Expected = lists:reverse(Calls).
+
+change_iterate_sub_test() ->
+    {T1, _} = learn([a,b], 1, #node{}),
+    {T2, _} = learn([a,d], 2, T1),
+    {T3, _} = learn([e], 3, T2),
+    Calls = iterate(fun(Call, Acc) -> {fun noop_iterator/2, [Call | Acc]} end,
+        [], root,
+        T3),
+    Expected = [
+        {start, root, undefined},
+        {stop, root}
+    ],
+    Expected = lists:reverse(Calls).
+
+filter_iterator_test() ->
+    Root = lists:foldl(fun({K, V}, Acc) ->
+        {Ret, true} = learn(split_topic_name(K), V, Acc),
+        Ret
+    end, #node{}, [
+        {"a/b" ,2},
+        {"a/d" ,3},
+        {"a/d/e" ,4},
+        {"f" ,5},
+        {"g/b" ,6}
+    ]),
+    Filter = ["r", any, "b"],
+    {FilterIt, FilterAcc} = create_filter_iterator(Filter),
+    {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, "r", Root),
+    Expected = [
+        ["r", "a", "b"],
+        ["r", "g", "b"]
+    ],
+    Expected = lists:reverse(Actual).
