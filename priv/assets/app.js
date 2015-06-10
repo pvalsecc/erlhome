@@ -71,6 +71,11 @@ Ext.define('Schema', {
     }
 });
 
+Ext.define('Zwave', {
+    extend: 'Ext.data.Model',
+    fields: ['id', 'desc'],
+});
+
 function createSubStore(model, urlPostfix, schemaId) {
     return Ext.create('Ext.data.Store', {
         model: model,
@@ -91,12 +96,12 @@ function createSubStore(model, urlPostfix, schemaId) {
 }
 
 function createSchemasStore() {
-    var store = new Ext.data.Store({
+    return new Ext.data.Store({
         storeId: 'Schemas',
 
         proxy: {
             type: 'rest',
-            url: 'schemas',
+            url: '/schemas',
             reader: {
                 type: 'json'
             },
@@ -111,7 +116,24 @@ function createSchemasStore() {
         autoLoad: true,
         autoSync: true
     });
-    return store;
+}
+
+function createZwaveStore(type) {
+    return new Ext.data.Store({
+        storeId: 'Zwave/'+type,
+
+        proxy: {
+            type: 'rest',
+            url: '/zwave/' + type,
+            reader: {
+                type: 'json'
+            }
+        },
+
+        model: 'Zwave',
+        autoLoad: true,
+        autoSync: false
+    });
 }
 
 function createSchemasGrid() {

@@ -305,12 +305,14 @@ function displayTimerForm(graph, element) {
 
 function displayModuleForm(graph, element) {
     displayForm(graph, element, 'Module params', [{
-        xtype: 'textfield',
-        fieldLabel: 'MQTT path',
-        name: 'mqtt_path'
+        xtype: 'combo',
+        fieldLabel: 'Z-wave device',
+        name: 'mqtt_path',
+        store: createZwaveStore('switch_binary'),
+        displayField: 'desc',
+        valueField: 'id'
     }]);
 }
-
 
 function handleClick(graph, cell) {
     var element = cell.model.attributes.element;
