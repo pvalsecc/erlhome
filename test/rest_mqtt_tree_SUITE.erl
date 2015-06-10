@@ -43,7 +43,7 @@ switch_binary(_Config) ->
     add_fake(2, 1),
     add_fake(2, 2),
     add_fake(3, 0),
-    Actual = rest_utils:get_json("/mqtt/switch_binary"),
+    Actual = rest_utils:get_json("/zwave/switch_binary"),
     Expected = [
         expected(2, 0),
         expected(2, 1),

@@ -20,7 +20,7 @@ start(_StartType, _StartArgs) ->
             {"/controls/:type/:element_id", [{element_id, int}],
                 ehome_rest_controls, []},
             {"/notifs", ehome_ws_notifs, []},
-            {"/mqtt/[:kind]", ehome_rest_mqtt_tree, []},
+            {"/zwave/[:kind]", ehome_rest_mqtt_tree, []},
             {"/", cowboy_static, {priv_file, erlhome, "assets/index.html",
                 [{mimetypes, cow_mimetypes, all}]}},
             {"/[...]", cowboy_static, {priv_dir, erlhome, "assets",

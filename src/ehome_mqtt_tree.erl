@@ -92,7 +92,8 @@ init([]) ->
             Con = mqtt_client:connect(),
             mqtt_client:subscribe(Con, "zwave/get/#", fun(Topic, Message) ->
                 gen_server:cast(Self, {from_mqtt, Topic, Message})
-            end);
+            end),
+            Con;
         false ->
             undefined
     end,
@@ -141,8 +142,9 @@ handle_call(Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({from_mqtt, TopicRaw, Value}, State) ->
+handle_cast({from_mqtt, TopicRaw, ValueRaw}, State) ->
     Topic = split_topic_name(TopicRaw),
+    Value = mqtt2erlang(ValueRaw),
     {noreply, from_mqtt(Topic, Value, State)};
 handle_cast({to_mqtt, Topic, Value}, State) ->
     TopicMqtt = build_topic_name(Topic),
@@ -330,7 +332,7 @@ publish(_TopicMqtt, _Value, #state{mqtt = undefined}) ->
     lager:warning("toMqtt: no connection");
 publish(TopicMqtt, Value, #state{mqtt = Mqtt}) ->
     lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
-    Message = mqtt2erlang(Value),
+    Message = erlang2mqtt(Value),
     mqtt_client:publish(Mqtt, TopicMqtt, Message).
 
 apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
