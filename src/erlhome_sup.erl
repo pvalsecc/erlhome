@@ -29,11 +29,8 @@ init([EnablePersistency]) ->
         {elements_sup, {ehome_elements_sup, start_link, []},
             permanent, 5000, worker, [ehome_elements_sup]},
         {db, {ehome_db, start_link, [EnablePersistency]}, permanent, 5000, worker,
-            [ehome_db]}
+            [ehome_db]},
+        {mqtt_tree, {ehome_mqtt_tree, start_link, []},
+                         permanent, 5000, worker, [ehome_mqtt_tree]}
     ],
-    Childs2 = case application:get_env(erlhome, enable_mqtt, true) of
-        false -> Childs;
-        _ -> Childs ++ [{mqtt_tree, {ehome_mqtt_tree, start_link, []},
-                         permanent, 5000, worker, [ehome_mqtt_tree]}]
-    end,
-    {ok, { {rest_for_one, 5, 10}, Childs2}}.
+    {ok, { {rest_for_one, 5, 10}, Childs}}.

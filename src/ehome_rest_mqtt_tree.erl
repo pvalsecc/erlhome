@@ -24,16 +24,21 @@ content_types_provided(Req, State) ->
     ], Req, State}.
 
 resource_exists(Req, _State) ->
-    case cowboy_req:parse_qs(Req) of
-        [{<<"filter">>, Filter}] ->
-            case ehome_utils:parse_path(Filter) of
-                undefined -> {false, Req, index};
-                FilterP -> {true, Req, FilterP}
-            end;
-        _ ->
-            lager:warning("Invalid params"),
-            {false, Req, index}
+    Kind = cowboy_req:binding(kind, Req),
+    case Kind of
+        undefined -> {true, Req, index};
+        <<"switch_binary">> -> {true, Req, [any, any, switch_binary, "level"]};
+        _ -> {false, Req, index}
     end.
 
+to_json(Req, index) ->
+    {jiffy:encode([<<"switch_binary">>]), Req, index};
 to_json(Req, Filter) ->
-    {jiffy:encode(ehome_mqtt_tree:list_filter(Filter)), Req, Filter}.
+    {jiffy:encode(format(ehome_mqtt_tree:list(Filter))), Req, Filter}.
+
+format([]) ->
+    [];
+format([[DeviceId, InstanceId | _] = All | Rest]) ->
+    Desc = io_lib:format("~p/~p", [DeviceId, InstanceId]),
+    Id = io_lib:format("~p", [All]),
+    [#{desc => list_to_binary(Desc), id => list_to_binary(Id)} | format(Rest)].

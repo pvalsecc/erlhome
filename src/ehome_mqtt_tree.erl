@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, dump/0, iterate/2, noop_iterator/2, list_filter/1]).
+-export([start_link/0, dump/0, iterate/2, noop_iterator/2, list/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -48,8 +48,9 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 -type iterator() ::
-    fun(({start, Key :: any(), Value :: any()} | {stop, Key :: any()}) ->
-        {iterator(), any()}).
+    fun(({start, Key :: any(), Value :: any()} | {stop, Key :: any()},
+        Acc::any()) ->
+        {SubIterator :: iterator(), NextAcc :: any()}).
 
 -spec iterate(iterator(), Acc :: any()) -> any().
 iterate(Iterator, Acc) ->
@@ -61,7 +62,7 @@ dump() ->
 noop_iterator(_, Acc) ->
     {undefined, Acc}.
 
-list_filter(Filter) ->
+list(Filter) ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Result} = iterate(FilterIt, FilterAcc),
     lists:reverse(Result).

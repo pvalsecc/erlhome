@@ -25,6 +25,7 @@ init_per_testcase(_TestCase, Config) ->
     application:set_env(erlhome, enable_mqtt, false),
     {ok, AppStartList} = application:ensure_all_started(erlhome),
     {ok, AppStartList2} = application:ensure_all_started(inets),
+    lager:set_loglevel(lager_console_backend, debug),
     NewConfig = lists:keystore(app_start_list, 1, Config, {app_start_list,
             AppStartList ++ AppStartList2}),
     NewConfig.
