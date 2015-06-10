@@ -6,11 +6,13 @@
     background-image: url(images/delete.png) !important;
 }
 
+.icon-edit {
+    background-image: url(images/edit.png) !important;
+}
+
 .toolbar {
     background:  #3892d3;
 }
-
-
 
 .on .connection {
     stroke: #2ecc71;

@@ -331,7 +331,7 @@ function handleClick(graph, cell) {
 function showContextMenu(graph, cell) {
     var items = [{
         text: 'Delete',
-        iconCls: 'delete',
+        iconCls: 'icon-delete',
         handler: function() {
             graph.removingElement = true;
             cell.model.remove();  //will notify removeItem
@@ -350,7 +350,7 @@ function showContextMenu(graph, cell) {
         if(editor) {
             items.push({
                 text: 'Edit',
-                iconCls: 'edit',
+                iconCls: 'icon-edit',
                 handler: function() {editor(graph, element);}
             });
         }
@@ -358,7 +358,7 @@ function showContextMenu(graph, cell) {
     var contextMenu = new Ext.menu.Menu({
         items: items
     });
-    contextMenu.showAt(event.x - 10, event.y - 10);
+    contextMenu.showAt(event.x - 80, event.y - 10);
 }
 
 function createSchema(name, grid) {
