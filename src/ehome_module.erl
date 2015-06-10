@@ -101,6 +101,7 @@ get_value(Path) ->
 -include_lib("eunit/include/eunit.hrl").
 
 nominal_test() ->
+    application:set_env(erlhome, enable_mqtt, false),
     ehome_dispatcher:start_link(),
     ehome_mqtt_tree:start_link(),
     try
