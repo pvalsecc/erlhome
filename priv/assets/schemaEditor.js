@@ -424,6 +424,7 @@ function createSchema(name, grid) {
         dockedItems: [toolbar],
         listeners: {
             afterlayout: function() {
+                if(graph.paper) return;
                 var paper = new joint.dia.Paper({
                     el: $('#paper'),
                     width: '100%',
