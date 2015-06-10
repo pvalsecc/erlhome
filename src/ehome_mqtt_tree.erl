@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, dump/0, iterate/2, noop_iterator/2, list/1]).
+-export([start_link/0, dump/0, iterate/2, noop_iterator/2, list/1, fake_switch/3, get_value/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -66,6 +66,17 @@ list(Filter) ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Result} = iterate(FilterIt, FilterAcc),
     lists:reverse(Result).
+
+get_value(Path) ->
+    gen_server:call(?MODULE, {get_value, Path}).
+
+fake_switch(DeviceId, InstanceId, Value) ->  %for test only
+    Topic = lists:flatten(io_lib:format(
+        "zwave/get/devices/~w/instances/~w/commandClasses/37/data/level",
+        [DeviceId, InstanceId])),
+    io:format("~p~n", [Topic]),
+    gen_server:cast(?MODULE, {from_mqtt, Topic, erlang2mqtt(Value)}).
+
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -125,6 +136,8 @@ init([]) ->
 handle_call({iterate, Iterator, Acc}, _From, #state{root = Root} = State) ->
     #node{subs = Subs} = Root,
     {reply, iterate_subs(Iterator, Acc, Subs), State};
+handle_call({get_value, Path}, _From, #state{root = Root} = State) ->
+    {reply, get_value(Path, Root), State};
 handle_call(stop, _From, State) ->
     {stop, normal, ok, State};
 handle_call(Request, _From, State) ->
@@ -305,12 +318,9 @@ name2class(Name) when is_integer(Name) ->
 name2class(Name) when is_list(Name) ->
     Name.
 
-maybe(undefined, A) -> A;
-maybe(A, _) -> A.
-
 iterate(Iterator, Acc, Name, #node{value = Value, subs = Subs}) ->
     {SubIterator, Acc1} =  Iterator({start, Name, Value}, Acc),
-    Acc2 = iterate_subs(maybe(SubIterator, Iterator), Acc1, Subs),
+    Acc2 = iterate_subs(ehome_utils:maybe(SubIterator, Iterator), Acc1, Subs),
     {_, Acc3} = Iterator({stop, Name}, Acc2),
     Acc3.
 
@@ -333,7 +343,7 @@ publish(_TopicMqtt, _Value, #state{mqtt = undefined}) ->
 publish(TopicMqtt, Value, #state{mqtt = Mqtt}) ->
     lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
     Message = erlang2mqtt(Value),
-    mqtt_client:publish(Mqtt, TopicMqtt, Message).
+    mqtt_client:publish(Mqtt, TopicMqtt, Message). %TODO: Retain
 
 apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
     NextPath = [Name|CurPath],
@@ -364,6 +374,14 @@ create_filter_iterator(Filter) ->
         end,
         {[], [], Filter, []}
     }.
+
+get_value([], #node{value = Value}) ->
+    Value;
+get_value([Name|Rest], #node{subs = Subs}) ->
+    case maps:get(Name, Subs, undefined) of
+        undefined -> undefined;
+        Sub -> get_value(Rest, Sub)
+    end.
 
 classes() ->
     [
@@ -514,6 +532,12 @@ change_iterate_sub_test() ->
         {stop, root}
     ],
     Expected = lists:reverse(Calls).
+
+get_test() ->
+    {Root, _} = learn([a,b], 1, #node{}),
+    1 = get_value([a,b], Root),
+    undefined = get_value([a,c], Root),
+    undefined = get_value([c,f,e], Root).
 
 filter_iterator_test() ->
     Root = lists:foldl(fun({K, V}, Acc) ->

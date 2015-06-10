@@ -10,7 +10,7 @@
 -author("patrick").
 
 %% API
--export([id2str/1, parse_path/1]).
+-export([id2str/1, parse_path/1, maybe/2]).
 
 id2str(Id) ->
     binary:list_to_bin(integer_to_list(Id)).
@@ -38,3 +38,7 @@ parse_path(Path) when is_list(Path) ->
             lager:error("Cannot tokenize <~s>: ~p", [Path, ErrorInfo]),
             undefined
     end.
+
+maybe(undefined, A) -> A;
+maybe(A, _) -> A.
+

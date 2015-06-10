@@ -27,8 +27,10 @@ start_link(SchemaId, Id, Config) ->
 init({SchemaId, Id, Config}) ->
     MqttPath = subscribe(ehome_utils:parse_path(maps:get(<<"mqtt_path">>,
         Config, undefined))),
-    State = #state{schema_id = SchemaId, id = Id, mqtt_path = MqttPath},
-    {[false], State}.
+    Status = get_value(MqttPath),
+    State = #state{schema_id = SchemaId, id = Id, mqtt_path = MqttPath,
+        status = Status},
+    {[Status], notif_web(State)}.
 
 new_inputs([true, _], [false, _], State) ->
     force(State, true);
@@ -43,7 +45,10 @@ iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
 control(config, #{<<"mqtt_path">> := MqttPath}, State) ->
     case subscribe(ehome_utils:parse_path(MqttPath)) of
         undefined -> false;
-        NewMqttPath -> State#state{mqtt_path = NewMqttPath}
+        NewMqttPath ->
+            Status = get_value(NewMqttPath),
+            NewState = State#state{mqtt_path = NewMqttPath, status = Status},
+            {new_outputs, [Status], notif_web(NewState)}
     end;
 control(switch, Value, #state{status = Value} = State) ->
     State; %no change
@@ -82,6 +87,13 @@ notif_mqtt(#state{mqtt_path = Path} = State, Status) ->
     ehome_dispatcher:publish([mqtt, set | Path], Status),
     State.
 
+get_value(#state{mqtt_path = Path}) ->
+    get_value(Path);
+get_value(undefined) ->
+    false;
+get_value(Path) ->
+    ehome_utils:maybe(ehome_mqtt_tree:get_value(Path), false).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,6 +102,7 @@ notif_mqtt(#state{mqtt_path = Path} = State, Status) ->
 
 nominal_test() ->
     ehome_dispatcher:start_link(),
+    ehome_mqtt_tree:start_link(),
     try
         dispatcher_recorder:start_link(),
         dispatcher_recorder:subscribe([mqtt, set, all]),
@@ -128,5 +141,6 @@ nominal_test() ->
         [] = dispatcher_recorder:get_events(),
         [false] = ehome_element:get_outputs(Module)
     after
-        ehome_dispatcher:stop()
+        ehome_dispatcher:stop(),
+        gen_server:call(ehome_mqtt_tree, stop)
     end.

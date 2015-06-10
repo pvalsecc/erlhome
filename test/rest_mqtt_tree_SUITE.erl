@@ -26,23 +26,16 @@ end_per_testcase(TestCase, Config) ->
 
 %% Tests ============================
 
-add_fake(DeviceId, InstanceId) ->
-    Topic = lists:flatten(io_lib:format(
-        "zwave/get/devices/~w/instances/~w/commandClasses/37/data/level",
-        [DeviceId, InstanceId])),
-    io:format("~p~n", [Topic]),
-    gen_server:cast(ehome_mqtt_tree, {from_mqtt, Topic, <<1:8, 1:8>>}).
-
 expected(DeviceId, InstanceId) ->
     Id = io_lib:format("~p", [[DeviceId, InstanceId, switch_binary, "level"]]),
     Desc = io_lib:format("~p/~p", [DeviceId, InstanceId]),
     #{id => lists:flatten(Id), desc => lists:flatten(Desc)}.
 
 switch_binary(_Config) ->
-    add_fake(2, 0),
-    add_fake(2, 1),
-    add_fake(2, 2),
-    add_fake(3, 0),
+    ehome_mqtt_tree:fake_switch(2, 0, true),
+    ehome_mqtt_tree:fake_switch(2, 1, false),
+    ehome_mqtt_tree:fake_switch(2, 2, true),
+    ehome_mqtt_tree:fake_switch(3, 0, false),
     Actual = rest_utils:get_json("/zwave/switch_binary"),
     Expected = [
         expected(2, 0),
