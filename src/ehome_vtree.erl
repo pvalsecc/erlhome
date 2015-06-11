@@ -120,20 +120,21 @@ set_value_test() ->
     {T2, true} = set_value([a,b,d], 2, T1),
     {_, false} = set_value([a,b,d], 2, T2),
     #node{subs =
-    #{a := #node{subs =
-    #{b := #node{subs =
-    #{c := #node{value = 1},
-        d := #node{value = 2}}
-    }}
-    }}
+        #{a := #node{subs =
+            #{b := #node{subs =
+                #{c := #node{value = 1},
+                    d := #node{value = 2}
+                }
+            }}
+        }}
     } = T2.
 
 simple_iterate_sub_test() ->
     {T1, _} = set_value([a,b], 1, #node{}),
     {T2, _} = set_value([a,d], 2, T1),
     {T3, _} = set_value([e], 3, T2),
-    Calls = iterate(fun(Call, Acc) -> {undefined, [Call | Acc]} end, [], root,
-        T3),
+    Calls = iterate(fun(Call, Acc) -> {undefined, [Call | Acc]} end,
+        [], root, T3),
     Expected = [
         {start, root, undefined},
         {start, a, undefined},
