@@ -42,12 +42,7 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--type iterator() ::
-    fun(({start, Key :: any(), Value :: any()} | {stop, Key :: any()},
-        Acc::any()) ->
-        {SubIterator :: iterator(), NextAcc :: any()}).
-
--spec iterate(iterator(), Acc :: any()) -> any().
+-spec iterate(ehome_vtree:iterator(), Acc :: any()) -> any().
 iterate(Iterator, Acc) ->
     gen_server:call(?MODULE, {iterate, Iterator, Acc}).
 

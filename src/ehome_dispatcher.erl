@@ -38,7 +38,7 @@
 
 -define(SERVER, ?MODULE).
 
--type node_id() :: integer() | binary() | any | all | atom().
+-type node_id() :: any() | any | all.
 
 -type path() :: [node_id()].
 

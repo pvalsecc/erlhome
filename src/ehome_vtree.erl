@@ -17,6 +17,14 @@
     subs = #{} :: #{any() => #node{}}
 }).
 
+-type iterator() ::
+fun(({start, Key :: any(), Value :: any()} | {stop, Key :: any()},
+Acc::any()) ->
+    {SubIterator :: iterator(), NextAcc :: any()}).
+
+-export_type([iterator/0]).
+
+-spec new() -> #node{}.
 new() ->
     #node{}.
 
@@ -42,14 +50,15 @@ get_value([Name|Rest], #node{subs = Subs}) ->
     end.
 
 
+-spec iterate_subs(iterator(), Acc :: any(), Root :: #node{}) -> Acc2 :: any().
+iterate_subs(Iterator, Acc, #node{subs = Subs}) ->
+    iterate_subs_impl(Iterator, Acc, Subs).
+
 iterate(Iterator, Acc, Name, #node{value = Value, subs = Subs}) ->
     {SubIterator, Acc1} =  Iterator({start, Name, Value}, Acc),
     Acc2 = iterate_subs_impl(ehome_utils:maybe(SubIterator, Iterator), Acc1, Subs),
     {_, Acc3} = Iterator({stop, Name}, Acc2),
     Acc3.
-
-iterate_subs(Iterator, Acc, #node{subs = Subs}) ->
-    iterate_subs_impl(Iterator, Acc, Subs).
 
 iterate_subs_impl(Iterator, Acc, #{} = Subs) ->
     iterate_subs_impl(Iterator, Acc, maps:to_list(Subs));
@@ -81,6 +90,8 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results} = Acc) ->
             {fun ehome_vtree:noop_iterator/2, Acc}
     end.
 
+-spec create_filter_iterator([any | any()]) ->
+    {IteratorFun :: iterator(), IteratorAcc :: any()}.
 create_filter_iterator(Filter) ->
     {
         fun({start, Name, _Value}, Acc) ->
