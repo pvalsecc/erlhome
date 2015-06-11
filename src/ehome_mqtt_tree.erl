@@ -24,7 +24,7 @@
 
 -record(state, {
     mqtt :: pid(),
-    root
+    cache
 }).
 
 %%%===================================================================
@@ -108,7 +108,7 @@ init([]) ->
         fun([mqtt, control | Topic], Value) ->
             gen_server:cast(Self, {control_mqtt, Topic, Value})
         end),
-    {ok, #state{mqtt = Mqtt, root = ehome_vtree:new()}}.
+    {ok, #state{mqtt = Mqtt, cache = ehome_vtree:new()}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -125,9 +125,9 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({iterate, Iterator, Acc}, _From, #state{root = Root} = State) ->
+handle_call({iterate, Iterator, Acc}, _From, #state{cache = Root} = State) ->
     {reply, ehome_vtree:iterate_subs(Iterator, Acc, Root), State};
-handle_call({get_value, Path}, _From, #state{root = Root} = State) ->
+handle_call({get_value, Path}, _From, #state{cache = Root} = State) ->
     {reply, ehome_vtree:get_value(Path, Root), State};
 handle_call(stop, _From, State) ->
     {stop, normal, ok, State};
@@ -249,13 +249,13 @@ erlang2mqtt(Val) when is_binary(Val) ->
 
 from_mqtt(["zwave", "get", "devices", Device, "instances", Instance,
            "commandClasses", Class, "data" | Rest], Message,
-        #state{root = Root} = State) ->
+        #state{cache = Root} = State) ->
     Path = to_path(Device, Instance, Class, Rest),
     case ehome_vtree:set_value(Path, Message, Root) of
         {NewRoot, true} ->
             lager:debug("~p = ~p", [Path, Message]),
             ehome_dispatcher:publish([mqtt, get | Path], Message),
-            State#state{root = NewRoot};
+            State#state{cache = NewRoot};
         {_, false} ->
             State
     end;
