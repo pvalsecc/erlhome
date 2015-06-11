@@ -101,47 +101,41 @@ get_value(Path) ->
 -include_lib("eunit/include/eunit.hrl").
 
 nominal_test() ->
-    application:set_env(erlhome, enable_mqtt, false),
-    ehome_dispatcher:start_link(),
-    ehome_mqtt_tree:start_link(),
-    try
-        dispatcher_recorder:start_link(),
-        dispatcher_recorder:subscribe([mqtt, set, all]),
-        {ok, Module} = start_link(1, 2,
-            #{<<"mqtt_path">> => <<"[2,1,switch_binary,\"level\"]">>}),
-        test_utils:wait_queue_empty(Module),
-        [false] = ehome_element:get_outputs(Module),
+    test_utils:mqtt_tree_env(fun() ->
+        dispatcher_recorder:test_env([mqtt, set, all], fun() ->
+            {ok, Module} = start_link(1, 2,
+                #{<<"mqtt_path">> => <<"[2,1,switch_binary,\"level\"]">>}),
+            test_utils:wait_queue_empty(Module),
+            [false] = ehome_element:get_outputs(Module),
 
-        ehome_element:set_input(Module, 1, true),
-        test_utils:wait_queue_empty(Module),
-        [{[mqtt,set,2,1,switch_binary,"level"], true}] = dispatcher_recorder:get_events(),
-        [false] = ehome_element:get_outputs(Module),
+            ehome_element:set_input(Module, 1, true),
+            test_utils:wait_queue_empty(Module),
+            [{[mqtt,set,2,1,switch_binary,"level"], true}] = dispatcher_recorder:get_events(),
+            [false] = ehome_element:get_outputs(Module),
 
-        ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary, "level"], true),
-        ehome_dispatcher:sync(),
-        test_utils:wait_queue_empty(Module),
-        [true] = ehome_element:get_outputs(Module),
+            ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary, "level"], true),
+            ehome_dispatcher:sync(),
+            test_utils:wait_queue_empty(Module),
+            [true] = ehome_element:get_outputs(Module),
 
-        ehome_element:set_input(Module, 1, false),
-        test_utils:wait_queue_empty(Module),
-        [] = dispatcher_recorder:get_events(),
-        [true] = ehome_element:get_outputs(Module),
+            ehome_element:set_input(Module, 1, false),
+            test_utils:wait_queue_empty(Module),
+            [] = dispatcher_recorder:get_events(),
+            [true] = ehome_element:get_outputs(Module),
 
-        ehome_element:set_input(Module, 2, true),
-        test_utils:wait_queue_empty(Module),
-        [{[mqtt,set,2,1,switch_binary,"level"], false}] = dispatcher_recorder:get_events(),
-        [true] = ehome_element:get_outputs(Module),
+            ehome_element:set_input(Module, 2, true),
+            test_utils:wait_queue_empty(Module),
+            [{[mqtt,set,2,1,switch_binary,"level"], false}] = dispatcher_recorder:get_events(),
+            [true] = ehome_element:get_outputs(Module),
 
-        ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary, "level"], false),
-        ehome_dispatcher:sync(),
-        test_utils:wait_queue_empty(Module),
-        [false] = ehome_element:get_outputs(Module),
+            ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary, "level"], false),
+            ehome_dispatcher:sync(),
+            test_utils:wait_queue_empty(Module),
+            [false] = ehome_element:get_outputs(Module),
 
-        ehome_element:set_input(Module, 2, false),
-        test_utils:wait_queue_empty(Module),
-        [] = dispatcher_recorder:get_events(),
-        [false] = ehome_element:get_outputs(Module)
-    after
-        ehome_dispatcher:stop(),
-        gen_server:call(ehome_mqtt_tree, stop)
-    end.
+            ehome_element:set_input(Module, 2, false),
+            test_utils:wait_queue_empty(Module),
+            [] = dispatcher_recorder:get_events(),
+            [false] = ehome_element:get_outputs(Module)
+        end)
+    end).

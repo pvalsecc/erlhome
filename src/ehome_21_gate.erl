@@ -91,36 +91,36 @@ xor_test() ->
     [false] = ehome_element:get_outputs(Or).
 
 connection_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, And} = and_start_link(1, 1),
-    {ok, Or} = or_start_link(1, 2),
-    ok = ehome_element:connect(And, 1, Or, 1, 1),
-    test_utils:wait_queues_empty([And, Or]),
-    [false] = ehome_element:get_outputs(Or),
-    ehome_element:set_input(And, 2, true),
-    test_utils:wait_queues_empty([And, Or]),
-    [false] = ehome_element:get_outputs(Or),
-    ehome_element:set_input(And, 1, true),
-    test_utils:wait_queues_empty([And, Or]),
-    [true] = ehome_element:get_outputs(Or),
-    ehome_dispatcher:stop().
+    test_utils:dispatcher_env(fun() ->
+        {ok, And} = and_start_link(1, 1),
+        {ok, Or} = or_start_link(1, 2),
+        ok = ehome_element:connect(And, 1, Or, 1, 1),
+        test_utils:wait_queues_empty([And, Or]),
+        [false] = ehome_element:get_outputs(Or),
+        ehome_element:set_input(And, 2, true),
+        test_utils:wait_queues_empty([And, Or]),
+        [false] = ehome_element:get_outputs(Or),
+        ehome_element:set_input(And, 1, true),
+        test_utils:wait_queues_empty([And, Or]),
+        [true] = ehome_element:get_outputs(Or)
+    end).
 
 multi_connection_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, And} = and_start_link(1, 1),
-    {ok, Or1} = or_start_link(1, 2),
-    {ok, Or2} = or_start_link(1, 3),
-    ok = ehome_element:connect(And, 1, Or1, 1, 1),
-    ok = ehome_element:connect(And, 1, Or2, 2, 2),
-    test_utils:wait_queues_empty([And, Or1, Or2]),
-    [false] = ehome_element:get_outputs(Or1),
-    [false] = ehome_element:get_outputs(Or2),
-    ehome_element:set_input(And, 2, true),
-    test_utils:wait_queues_empty([And, Or1, Or2]),
-    [false] = ehome_element:get_outputs(Or1),
-    [false] = ehome_element:get_outputs(Or2),
-    ehome_element:set_input(And, 1, true),
-    test_utils:wait_queues_empty([And, Or1, Or2]),
-    [true] = ehome_element:get_outputs(Or1),
-    [true] = ehome_element:get_outputs(Or2),
-    ehome_dispatcher:stop().
+    test_utils:dispatcher_env(fun() ->
+        {ok, And} = and_start_link(1, 1),
+        {ok, Or1} = or_start_link(1, 2),
+        {ok, Or2} = or_start_link(1, 3),
+        ok = ehome_element:connect(And, 1, Or1, 1, 1),
+        ok = ehome_element:connect(And, 1, Or2, 2, 2),
+        test_utils:wait_queues_empty([And, Or1, Or2]),
+        [false] = ehome_element:get_outputs(Or1),
+        [false] = ehome_element:get_outputs(Or2),
+        ehome_element:set_input(And, 2, true),
+        test_utils:wait_queues_empty([And, Or1, Or2]),
+        [false] = ehome_element:get_outputs(Or1),
+        [false] = ehome_element:get_outputs(Or2),
+        ehome_element:set_input(And, 1, true),
+        test_utils:wait_queues_empty([And, Or1, Or2]),
+        [true] = ehome_element:get_outputs(Or1),
+        [true] = ehome_element:get_outputs(Or2)
+    end).

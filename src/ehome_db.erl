@@ -463,100 +463,105 @@ add_schema_test() ->
         schemas = [ExpectedSchema]},
     {NextId, ExpectedState} = add_schema(Schema, State).
 
+db_env(Test) ->
+    test_utils:dispatcher_env(fun() ->
+        {ok, _PId} = start_link(false),
+        try
+            Test()
+        after
+            stop()
+        end
+    end).
+
 schema_test() ->
-    {ok, _PId} = start_link(false),
-    [] = get_schemas(),
-    Schema = #schema{name = "toto"},
-    1 = Id = create_schema(Schema),
-    NewSchema = Schema#schema{id = Id},
-    [NewSchema] = get_schemas(),
-    NewSchema = get_schema(Id),
-    Renamed = NewSchema#schema{name = "titi"},
-    true = update_schema(Id, Renamed),
-    Renamed = get_schema(Id),
-    false = delete_schema(Id + 1),
-    [Renamed] = get_schemas(),
-    true = delete_schema(Id),
-    [] = get_schemas(),
-    stop().
+    db_env(fun() ->
+        [] = get_schemas(),
+        Schema = #schema{name = "toto"},
+        1 = Id = create_schema(Schema),
+        NewSchema = Schema#schema{id = Id},
+        [NewSchema] = get_schemas(),
+        NewSchema = get_schema(Id),
+        Renamed = NewSchema#schema{name = "titi"},
+        true = update_schema(Id, Renamed),
+        Renamed = get_schema(Id),
+        false = delete_schema(Id + 1),
+        [Renamed] = get_schemas(),
+        true = delete_schema(Id),
+        [] = get_schemas()
+    end).
 
 element_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, _PId2} = start_link(false),
-    Schema = #schema{name = "toto"},
-    SchemaId = create_schema(Schema),
-    Element = #element{type = <<"test">>},
+    db_env(fun() ->
+        Schema = #schema{name = "toto"},
+        SchemaId = create_schema(Schema),
+        Element = #element{type = <<"test">>},
 
-    ElementId = create_element(SchemaId, Element),
-    Element2 = Element#element{id = ElementId},
-    Schema2 = Schema#schema{
-        id = SchemaId,
-        elements = [Element2]
-    },
-    Schema2 = get_schema(SchemaId),
+        ElementId = create_element(SchemaId, Element),
+        Element2 = Element#element{id = ElementId},
+        Schema2 = Schema#schema{
+            id = SchemaId,
+            elements = [Element2]
+        },
+        Schema2 = get_schema(SchemaId),
 
-    Element3 = Element2#element{type = <<"test2">>},
-    true = update_element(SchemaId, ElementId, Element3),
-    Schema3 = Schema2#schema{elements = [Element3]},
-    Schema3 = get_schema(SchemaId),
-    Element3 = get_element(SchemaId, ElementId),
+        Element3 = Element2#element{type = <<"test2">>},
+        true = update_element(SchemaId, ElementId, Element3),
+        Schema3 = Schema2#schema{elements = [Element3]},
+        Schema3 = get_schema(SchemaId),
+        Element3 = get_element(SchemaId, ElementId),
 
-    delete_element(SchemaId, ElementId),
-    Schema4 = Schema3#schema{elements = []},
-    Schema4 = get_schema(SchemaId),
-    false = get_element(SchemaId, ElementId),
-    stop(),
-    ehome_dispatcher:stop().
+        delete_element(SchemaId, ElementId),
+        Schema4 = Schema3#schema{elements = []},
+        Schema4 = get_schema(SchemaId),
+        false = get_element(SchemaId, ElementId)
+    end).
 
 connection_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, _PId2} = start_link(false),
-    Schema = #schema{name = "toto"},
-    SchemaId = create_schema(Schema),
-    Connection = #connection{source_id = 1, source_output = 1, target_id = 1,
-        target_input = 1},
+    db_env(fun() ->
+        Schema = #schema{name = "toto"},
+        SchemaId = create_schema(Schema),
+        Connection = #connection{source_id = 1, source_output = 1, target_id = 1,
+            target_input = 1},
 
-    ConnectionId = create_connection(SchemaId, Connection),
-    Connection2 = Connection#connection{id = ConnectionId},
-    Schema2 = Schema#schema{
-        id = SchemaId,
-        connections = [Connection2]
-    },
-    Schema2 = get_schema(SchemaId),
+        ConnectionId = create_connection(SchemaId, Connection),
+        Connection2 = Connection#connection{id = ConnectionId},
+        Schema2 = Schema#schema{
+            id = SchemaId,
+            connections = [Connection2]
+        },
+        Schema2 = get_schema(SchemaId),
 
-    Connection3 = Connection2#connection{target_input = 2},
-    true = update_connection(SchemaId, ConnectionId, Connection3),
-    Schema3 = Schema2#schema{connections = [Connection3]},
-    Schema3 = get_schema(SchemaId),
-    Connection3 = get_connection(SchemaId, ConnectionId),
+        Connection3 = Connection2#connection{target_input = 2},
+        true = update_connection(SchemaId, ConnectionId, Connection3),
+        Schema3 = Schema2#schema{connections = [Connection3]},
+        Schema3 = get_schema(SchemaId),
+        Connection3 = get_connection(SchemaId, ConnectionId),
 
-    delete_connection(SchemaId, ConnectionId),
-    Schema4 = Schema3#schema{connections = []},
-    Schema4 = get_schema(SchemaId),
-    false = get_connection(SchemaId, ConnectionId),
-    stop(),
-    ehome_dispatcher:stop().
+        delete_connection(SchemaId, ConnectionId),
+        Schema4 = Schema3#schema{connections = []},
+        Schema4 = get_schema(SchemaId),
+        false = get_connection(SchemaId, ConnectionId)
+    end).
 
 element_delete_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, _PId2} = start_link(false),
-    Schema = #schema{name = "toto"},
-    SchemaId = create_schema(Schema),
-    Element = #element{type = <<"test">>},
-    ElementId1 = create_element(SchemaId, Element),
-    ElementId2 = create_element(SchemaId, Element),
-    ElementId3 = create_element(SchemaId, Element),
-    Connection1 = #connection{source_id = ElementId1, source_output = 1,
-        target_id = ElementId2, target_input = 1},
-    ConnectionId1 = create_connection(SchemaId, Connection1),
-    Connection2 = #connection{source_id = ElementId1, source_output = 1,
-        target_id = ElementId3, target_input = 1},
-    ConnectionId2 = create_connection(SchemaId, Connection2),
-    Connection3 = #connection{source_id = ElementId2, source_output = 1,
-        target_id = ElementId3, target_input = 1},
-    ConnectionId3 = create_connection(SchemaId, Connection3),
-    true = delete_element(SchemaId, ElementId2),
-    false = get_connection(SchemaId, ConnectionId1),
-    #connection{} = get_connection(SchemaId, ConnectionId2),
-    false = get_connection(SchemaId, ConnectionId3),
-    ehome_dispatcher:stop().
+    db_env(fun() ->
+        Schema = #schema{name = "toto"},
+        SchemaId = create_schema(Schema),
+        Element = #element{type = <<"test">>},
+        ElementId1 = create_element(SchemaId, Element),
+        ElementId2 = create_element(SchemaId, Element),
+        ElementId3 = create_element(SchemaId, Element),
+        Connection1 = #connection{source_id = ElementId1, source_output = 1,
+            target_id = ElementId2, target_input = 1},
+        ConnectionId1 = create_connection(SchemaId, Connection1),
+        Connection2 = #connection{source_id = ElementId1, source_output = 1,
+            target_id = ElementId3, target_input = 1},
+        ConnectionId2 = create_connection(SchemaId, Connection2),
+        Connection3 = #connection{source_id = ElementId2, source_output = 1,
+            target_id = ElementId3, target_input = 1},
+        ConnectionId3 = create_connection(SchemaId, Connection3),
+        true = delete_element(SchemaId, ElementId2),
+        false = get_connection(SchemaId, ConnectionId1),
+        #connection{} = get_connection(SchemaId, ConnectionId2),
+        false = get_connection(SchemaId, ConnectionId3)
+    end).

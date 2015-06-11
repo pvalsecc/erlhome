@@ -65,13 +65,13 @@ new_value(Value, #state{schema_id = SchemaId, id = Id} = Inner) ->
 -include_lib("eunit/include/eunit.hrl").
 
 switch_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, Switch} = start_link(1, 1),
-    {ok, Relay} = ehome_relay:start_link(1, 2),
-    ehome_element:connect(Switch, 1, Relay, 1, 1),
-    test_utils:wait_queues_empty([Switch, Relay]),
-    [false] = ehome_element:get_inputs(Relay),
-    switch(Switch, true),
-    test_utils:wait_queues_empty([Switch, Relay]),
-    [true] = ehome_element:get_inputs(Relay),
-    ehome_dispatcher:stop().
+    test_utils:dispatcher_env(fun() ->
+        {ok, Switch} = start_link(1, 1),
+        {ok, Relay} = ehome_relay:start_link(1, 2),
+        ehome_element:connect(Switch, 1, Relay, 1, 1),
+        test_utils:wait_queues_empty([Switch, Relay]),
+        [false] = ehome_element:get_inputs(Relay),
+        switch(Switch, true),
+        test_utils:wait_queues_empty([Switch, Relay]),
+        [true] = ehome_element:get_inputs(Relay)
+    end).

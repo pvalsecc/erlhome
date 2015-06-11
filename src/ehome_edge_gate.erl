@@ -80,69 +80,66 @@ is_edge(_Input, #state{trigger = both}) ->
 -define(MARGIN, 10).
 
 up_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, Up} = up_start_link(1, 1),
-    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
-    ok = ehome_element:connect(Up, 1, Memory, 1, 3),
-    test_utils:wait_queues_empty([Up, Memory]),
-    [false] = ehome_element:get_outputs(Up),
-    [false] = ehome_element:get_outputs(Memory),
+    test_utils:dispatcher_env(fun() ->
+        {ok, Up} = up_start_link(1, 1),
+        {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
+        ok = ehome_element:connect(Up, 1, Memory, 1, 3),
+        test_utils:wait_queues_empty([Up, Memory]),
+        [false] = ehome_element:get_outputs(Up),
+        [false] = ehome_element:get_outputs(Memory),
 
-    ehome_element:set_input(Up, 1, true),
-    test_utils:wait_queues_empty([Up, Memory]),
-    [true] = ehome_element:get_outputs(Memory),
-    timer:sleep(?DELAY + ?MARGIN),
-    [false] = ehome_element:get_outputs(Up),
-
-    ehome_dispatcher:stop().
+        ehome_element:set_input(Up, 1, true),
+        test_utils:wait_queues_empty([Up, Memory]),
+        [true] = ehome_element:get_outputs(Memory),
+        timer:sleep(?DELAY + ?MARGIN),
+        [false] = ehome_element:get_outputs(Up)
+    end).
 
 down_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, Down} = down_start_link(1, 1),
-    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
-    ok = ehome_element:connect(Down, 1, Memory, 1, 3),
-    test_utils:wait_queues_empty([Down, Memory]),
-    [false] = ehome_element:get_outputs(Down),
-    [false] = ehome_element:get_outputs(Memory),
+    test_utils:dispatcher_env(fun() ->
+        {ok, Down} = down_start_link(1, 1),
+        {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
+        ok = ehome_element:connect(Down, 1, Memory, 1, 3),
+        test_utils:wait_queues_empty([Down, Memory]),
+        [false] = ehome_element:get_outputs(Down),
+        [false] = ehome_element:get_outputs(Memory),
 
-    ehome_element:set_input(Down, 1, true),
-    test_utils:wait_queues_empty([Down, Memory]),
-    [false] = ehome_element:get_outputs(Down),
-    [false] = ehome_element:get_outputs(Memory),
+        ehome_element:set_input(Down, 1, true),
+        test_utils:wait_queues_empty([Down, Memory]),
+        [false] = ehome_element:get_outputs(Down),
+        [false] = ehome_element:get_outputs(Memory),
 
-    ehome_element:set_input(Down, 1, false),
-    test_utils:wait_queues_empty([Down, Memory]),
-    [true] = ehome_element:get_outputs(Memory),
-    timer:sleep(?DELAY + ?MARGIN),
-    [false] = ehome_element:get_outputs(Down),
-
-    ehome_dispatcher:stop().
+        ehome_element:set_input(Down, 1, false),
+        test_utils:wait_queues_empty([Down, Memory]),
+        [true] = ehome_element:get_outputs(Memory),
+        timer:sleep(?DELAY + ?MARGIN),
+        [false] = ehome_element:get_outputs(Down)
+    end).
 
 both_test() ->
-    ehome_dispatcher:start_link(),
-    {ok, Both} = both_start_link(1, 1),
-    {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
-    ok = ehome_element:connect(Both, 1, Memory, 1, 3),
-    test_utils:wait_queues_empty([Both, Memory]),
-    [false] = ehome_element:get_outputs(Both),
-    [false] = ehome_element:get_outputs(Memory),
+    test_utils:dispatcher_env(fun() ->
+        {ok, Both} = both_start_link(1, 1),
+        {ok, Memory} = ehome_timer_gate:start_link(1, 2, #{<<"delay">> => 0}),
+        ok = ehome_element:connect(Both, 1, Memory, 1, 3),
+        test_utils:wait_queues_empty([Both, Memory]),
+        [false] = ehome_element:get_outputs(Both),
+        [false] = ehome_element:get_outputs(Memory),
 
-    ehome_element:set_input(Both, 1, true),
-    test_utils:wait_queues_empty([Both, Memory]),
-    [true] = ehome_element:get_outputs(Memory),
-    timer:sleep(?DELAY + ?MARGIN),
-    [false] = ehome_element:get_outputs(Both),
+        ehome_element:set_input(Both, 1, true),
+        test_utils:wait_queues_empty([Both, Memory]),
+        [true] = ehome_element:get_outputs(Memory),
+        timer:sleep(?DELAY + ?MARGIN),
+        [false] = ehome_element:get_outputs(Both),
 
-    ehome_element:set_input(Memory, 2, true),
-    ehome_element:set_input(Memory, 2, false),
-    test_utils:wait_queues_empty([Both, Memory]),
-    [false] = ehome_element:get_outputs(Both),
-    [false] = ehome_element:get_outputs(Memory),
+        ehome_element:set_input(Memory, 2, true),
+        ehome_element:set_input(Memory, 2, false),
+        test_utils:wait_queues_empty([Both, Memory]),
+        [false] = ehome_element:get_outputs(Both),
+        [false] = ehome_element:get_outputs(Memory),
 
-    ehome_element:set_input(Both, 1, false),
-    test_utils:wait_queues_empty([Both, Memory]),
-    [true] = ehome_element:get_outputs(Memory),
-    timer:sleep(?DELAY + ?MARGIN),
-    [false] = ehome_element:get_outputs(Both),
-
-    ehome_dispatcher:stop().
+        ehome_element:set_input(Both, 1, false),
+        test_utils:wait_queues_empty([Both, Memory]),
+        [true] = ehome_element:get_outputs(Memory),
+        timer:sleep(?DELAY + ?MARGIN),
+        [false] = ehome_element:get_outputs(Both)
+    end).

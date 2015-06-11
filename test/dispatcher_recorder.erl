@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, subscribe/1, stop/0, get_events/0]).
+-export([start_link/0, subscribe/1, stop/0, get_events/0, test_env/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -52,6 +52,15 @@ stop() ->
 get_events() ->
     ehome_dispatcher:sync(),
     gen_server:call(?SERVER, get_events).
+
+test_env(Path, Test) ->
+    start_link(),
+    try
+        dispatcher_recorder:subscribe(Path),
+        Test()
+    after
+        stop()
+    end.
 
 %%%===================================================================
 %%% gen_server callbacks
