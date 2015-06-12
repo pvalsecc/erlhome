@@ -300,7 +300,7 @@ publish(_TopicMqtt, _Value, #state{mqtt = undefined}) ->
 publish(TopicMqtt, Value, #state{mqtt = Mqtt}) ->
     lager:info("toMQTT: ~s = ~p", [TopicMqtt, Value]),
     Message = erlang2mqtt(Value),
-    mqtt_client:publish(Mqtt, TopicMqtt, Message). %TODO: Retain
+    mqtt_client:publish(Mqtt, TopicMqtt, Message).
 
 classes() ->
     [
