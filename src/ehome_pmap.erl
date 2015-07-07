@@ -2,7 +2,7 @@
 %%% @author pvalsecc
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%
+%%% Persitent map.
 %%% @end
 %%% Created : 12. Jun 2015 8:30 AM
 %%%-------------------------------------------------------------------
@@ -10,7 +10,7 @@
 -author("pvalsecc").
 
 %% API
--export([new/2, close/1, set/3, get/2, remove/2]).
+-export([new/2, close/1, set/3, get/2, remove/2, get_map/1]).
 
 -record(pmap, {
     db,
@@ -24,7 +24,8 @@ new(Name, true) ->
         {keypos, 1},
         {type, set}
     ]),
-    #pmap{db = Db};
+    Cache = maps:from_list(dets:traverse(Db, fun(E) -> {continue, E} end)),
+    #pmap{db = Db, cache = Cache};
 new(_, false) ->
     #pmap{}.
 
@@ -39,12 +40,13 @@ set(#pmap{db = Db, cache = Cache} = Pmap, Key, Value) ->
     set_db(Db, Key, Value),
     Pmap#pmap{cache = maps:put(Key, Value, Cache)}.
 
--spec get(#pmap{}, Key :: any()) -> {#pmap{}, Value :: any()}.
-get(#pmap{cache = Cache} = Pmap, Key) ->
-    case maps:get(Key, Cache, undefined) of
-        undefined -> get_db(Pmap, Key);
-        Value -> {Pmap, Value}
-    end.
+-spec get(#pmap{}, Key :: any()) -> Value :: any().
+get(#pmap{cache = Cache}, Key) ->
+    maps:get(Key, Cache, undefined).
+
+-spec get_map(#pmap{}) -> map().
+get_map(#pmap{cache = Cache}) ->
+    Cache.
 
 -spec remove(#pmap{}, Key :: any()) -> #pmap{}.
 remove(#pmap{db = Db, cache = Cache} = Pmap, Key) ->
@@ -56,15 +58,6 @@ set_db(undefined, _Key, _Value) ->
     ok;
 set_db(Db, Key, Value) ->
     dets:insert(Db, {Key, Value}).
-
-get_db(#pmap{db = undefined, cache = Cache} = Pmap, Key) ->
-    {Pmap#pmap{cache = maps:put(Key, undefined, Cache)}, undefined};
-get_db(#pmap{db = Db, cache = Cache} = Pmap, Key) ->
-    Value = case dets:lookup(Db, Key) of
-        [{_, Val}] -> Val;
-        [] -> undefined
-    end,
-    {Pmap#pmap{cache = maps:put(Key, Value, Cache)}, Value}.
 
 remove_db(undefined, _Key) ->
     ok;
@@ -78,21 +71,21 @@ remove_db(Db, Key) ->
 -include_lib("eunit/include/eunit.hrl").
 
 read_check(Map) ->
-    {Map2, 3} = get(Map, a),
-    {Map3, 2} = get(Map2, b),
-    {Map6, undefined} = get(Map3, c),
-    Map6.
+    3 = get(Map, a),
+    2 = get(Map, b),
+    undefined = get(Map, c),
+    #{a := 3, b := 2} = get_map(Map).
 
 basic_check(Map) ->
-    {Map2, undefined} = get(Map, a),
-    Map3 = set(Map2, a, 1),
+    undefined = get(Map, a),
+    Map3 = set(Map, a, 1),
     Map4 = set(Map3, b, 2),
     Map5 = set(Map4, a, 3),
-    Map6 = read_check(Map5),
-    Map7 = remove(Map6, a),
-    {Map8, undefined} = get(Map7, a),
-    Map9 = remove(Map8, z),
-    ok = close(Map9).
+    read_check(Map5),
+    Map6 = remove(Map5, a),
+    undefined = get(Map6, a),
+    Map8 = remove(Map6, z),
+    ok = close(Map8).
 
 non_persistent_test() ->
     Map = new("test", false),
@@ -104,6 +97,6 @@ persistent_test() ->
     basic_check(Map),
 
     Map2 = new("test", true),
-    {Map3, undefined} = get(Map2, a),
-    {Map4, 2} = get(Map3, b),
-    ok = close(Map4).
+    undefined = get(Map2, a),
+    2 = get(Map2, b),
+    ok = close(Map2).

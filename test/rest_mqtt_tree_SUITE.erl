@@ -29,7 +29,7 @@ end_per_testcase(TestCase, Config) ->
 expected(DeviceId, InstanceId) ->
     Id = io_lib:format("~p", [[DeviceId, InstanceId, switch_binary, "level"]]),
     Desc = io_lib:format("~p/~p", [DeviceId, InstanceId]),
-    #{id => lists:flatten(Id), desc => lists:flatten(Desc)}.
+    #{id => lists:flatten(Id), desc => lists:flatten(Desc), name => lists:flatten(Desc)}.
 
 switch_binary(_Config) ->
     ehome_mqtt_tree:fake_switch(2, 0, true),

@@ -30,6 +30,8 @@ init([EnablePersistency]) ->
             permanent, 5000, worker, [ehome_elements_sup]},
         {db, {ehome_db, start_link, [EnablePersistency]}, permanent, 5000, worker,
             [ehome_db]},
+        {names, {ehome_names, start_link, [EnablePersistency]}, permanent,
+            5000, worker, [ehome_names]},
         {mqtt_tree, {ehome_mqtt_tree, start_link, []},
                          permanent, 5000, worker, [ehome_mqtt_tree]}
     ],

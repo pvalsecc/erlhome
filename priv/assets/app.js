@@ -5,6 +5,7 @@ Ext.application({
 
     launch : function() {
        var schemaGrid = createSchemasGrid();
+       var devicesGrid = createDevicesGrid();
 
        Ext.create('Ext.container.Viewport', {
             renderTo     : Ext.getBody(),
@@ -21,13 +22,26 @@ Ext.application({
                         layout: 'border',
                         items : [
                             {
-                                region:'west',
+                                region: 'west',
                                 split: true,
                                 width: 200,
                                 height: '100%',
                                 items: [schemaGrid]
                             },
                             createSchema('#paper', schemaGrid)
+                        ]
+                    },
+                    {
+                        title: 'Devices',
+                        layout: 'border',
+                        items: [
+                            {
+                                region: 'west',
+                                split: true,
+                                width: 200,
+                                height: '100%',
+                                items: [devicesGrid]
+                            }
                         ]
                     }
                 ]
@@ -73,7 +87,7 @@ Ext.define('Schema', {
 
 Ext.define('Zwave', {
     extend: 'Ext.data.Model',
-    fields: ['id', 'desc'],
+    fields: ['id', 'name', 'desc'],
 });
 
 function createSubStore(model, urlPostfix, schemaId) {
@@ -120,40 +134,47 @@ function createSchemasStore() {
 
 function createZwaveStore(type) {
     return new Ext.data.Store({
-        storeId: 'Zwave/'+type,
+        storeId: 'Zwave/' + type,
 
         proxy: {
             type: 'rest',
             url: '/zwave/' + type,
             reader: {
                 type: 'json'
+            },
+            writer: {
+                type: 'json',
+                writeRecordId: false,
+                writeAllFields: true
             }
         },
 
         model: 'Zwave',
         autoLoad: true,
-        autoSync: false
+        autoSync: true
+    });
+}
+
+function createRowEditing(store) {
+    return Ext.create('Ext.grid.plugin.RowEditing', {
+        listeners: {
+            cancelEdit: function(editor, context) {
+                // Canceling editing of a locally added, unsaved record: remove it
+                if (context.record.phantom) {
+                    store.remove(context.record);
+                }
+            }
+        }
     });
 }
 
 function createSchemasGrid() {
     var schemasStore = createSchemasStore();
 
-    var rowEditing = Ext.create('Ext.grid.plugin.RowEditing', {
-        listeners: {
-            cancelEdit: function(editor, context) {
-                // Canceling editing of a locally added, unsaved record: remove it
-                if (context.record.phantom) {
-                    schemasStore.remove(context.record);
-                }
-            }
-        }
-    });
-
     var grid = Ext.create('Ext.grid.Panel', {
         width: '100%',
         height: '100%',
-        plugins: [rowEditing],
+        plugins: [createRowEditing(schemasStore)],
         store: schemasStore,
         columns: [
             {text: 'Schema Name', dataIndex: 'name', width: '100%', editor: 'textfield'}
@@ -188,4 +209,32 @@ function createSchemasGrid() {
     });
 
     return grid;
+}
+
+
+function createDevicesGrid() {
+    var devicesStore = createZwaveStore('switch_binary');
+
+    return Ext.create('Ext.grid.Panel', {
+        width: '100%',
+        height: '100%',
+        plugins: [createRowEditing(devicesStore)],
+        store: devicesStore,
+        columns: [
+            {text: 'Name', dataIndex: 'name', width: '30%', editor:
+            'textfield'},
+            {text: 'Description', dataIndex: 'desc', width: '70%', editor:
+            'textfield'},
+        ],
+        dockedItems: [{
+            xtype: 'toolbar',
+            items: [{
+                text: 'Refresh',
+                iconCls: 'icon-refresh',
+                handler: function() {
+                    devicesStore.reload();
+                }
+            }]
+        }]
+    });
 }

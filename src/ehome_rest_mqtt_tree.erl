@@ -34,11 +34,16 @@ resource_exists(Req, _State) ->
 to_json(Req, index) ->
     {jiffy:encode([<<"switch_binary">>]), Req, index};
 to_json(Req, Filter) ->
-    {jiffy:encode(format(ehome_mqtt_tree:list(Filter))), Req, Filter}.
+    List = ehome_mqtt_tree:list(Filter),
+    Names = ehome_names:get_map(),
+    {jiffy:encode(format(List, Names)), Req, Filter}.
 
-format([]) ->
+format([], _Names) ->
     [];
-format([[DeviceId, InstanceId | _] = All | Rest]) ->
-    Desc = io_lib:format("~p/~p", [DeviceId, InstanceId]),
+format([[DeviceId, InstanceId | _] = All | Rest], Names) ->
+    Name = io_lib:format("~p/~p", [DeviceId, InstanceId]),
+    BinName = list_to_binary(Name),
+    Desc = maps:get(BinName, Names, BinName),
     Id = io_lib:format("~p", [All]),
-    [#{desc => list_to_binary(Desc), id => list_to_binary(Id)} | format(Rest)].
+    [#{name => BinName, desc => Desc, id => list_to_binary(Id)} |
+        format(Rest, Names)].
