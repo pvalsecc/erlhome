@@ -63,8 +63,8 @@ fake_switch(DeviceId, InstanceId, Value) when is_boolean(Value) ->%for test only
     Topic = lists:flatten(io_lib:format(
         "zwave/get/devices/~w/instances/~w/commandClasses/37/data/level",
         [DeviceId, InstanceId])),
-    io:format("~p~n", [Topic]),
-    gen_server:cast(?MODULE, {from_mqtt, Topic, erlang2mqtt(Value)}).
+    gen_server:cast(?MODULE, {from_mqtt, Topic, erlang2mqtt(Value)}),
+    Topic.
 
 
 %%%===================================================================

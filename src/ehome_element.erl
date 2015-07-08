@@ -123,6 +123,8 @@ control(Gate, Type, Message) ->
 init([SchemaId, Id, Module, NbInputs, NbOutputs, Params]) ->
     {Outputs, InnerState} = Module:init(Params),
     NbOutputs = length(Outputs),
+    lager:md([{desc, io_lib:format("id=~p", [Id])}]),
+    lager:debug("Create ~p params=~p", [Module, Params]),
     {ok, #state{
         schema_id = SchemaId,
         id = Id,
@@ -244,6 +246,7 @@ handle_info(_Info, State) ->
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
         State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
+    lager:debug("Stopping"),
     ok.
 
 %%--------------------------------------------------------------------
@@ -268,9 +271,9 @@ handle_new_outputs(Outputs, NewInner, #state{output_values = Outputs} = State) -
     %no output changes
     {noreply, State#state{inner_state = NewInner}};
 handle_new_outputs(NewOutputs, NewInner,
-        #state{id = Id, output_values = Outputs, output_connections = Connections} =
+        #state{output_values = Outputs, output_connections = Connections} =
             State) ->
-    lager:debug("~p: output=~w", [Id, NewOutputs]),
+    lager:debug("output=~w", [NewOutputs]),
     notify(Outputs, NewOutputs, Connections, State),
     {noreply, State#state{output_values = NewOutputs, inner_state = NewInner}}.
 
