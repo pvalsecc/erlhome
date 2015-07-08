@@ -80,14 +80,12 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
                   end,
     {fun ehome_vtree:noop_iterator/2,
         {NextPath, [FHead|PrevFilters], [], NextResults}};
-apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results} = Acc) ->
+apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
+    Acc = {[Name|CurPath], [FHead|PrevFilters], FRest, Results},
     case FHead of
-        any ->
-            {undefined, {[Name|CurPath], [FHead|PrevFilters], FRest, Results}};
-        Name ->
-            {undefined, {[Name|CurPath], [FHead|PrevFilters], FRest, Results}};
-        _ ->
-            {fun ehome_vtree:noop_iterator/2, Acc}
+        any -> {undefined, Acc};
+        Name -> {undefined, Acc};
+        _ -> {fun ehome_vtree:noop_iterator/2, Acc}
     end.
 
 -spec create_filter_iterator([any | any()]) ->
@@ -95,8 +93,8 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results} = Acc) ->
 create_filter_iterator(Filter) ->
     {
         fun({start, Name, _Value}, Acc) ->
-            apply_filter(Name, Acc);
-            ({stop, Name},
+                apply_filter(Name, Acc);
+           ({stop, Name},
                     {[Name | CurPath], [FHead|PrevFilters], FRest, Results}) ->
                 {undefined, {CurPath, PrevFilters, [FHead|FRest], Results}}
         end,
@@ -168,22 +166,36 @@ get_test() ->
     undefined = get_value([a,c], Root),
     undefined = get_value([c,f,e], Root).
 
-filter_iterator_test() ->
-    Root = lists:foldl(fun({K, V}, Acc) ->
-        {Ret, true} = set_value(K, V, Acc),
-        Ret
-    end, new(), [
+build_test_tree() ->
+    lists:foldl(fun({K, V}, Acc) ->
+                    {Ret, true} = set_value(K, V, Acc),
+                    Ret
+                end, new(),
+    [
         {[a,b] ,2},
         {[a,d] ,3},
         {[a,d,e] ,4},
         {[f] ,5},
         {[g,b] ,6}
-    ]),
+    ]).
+
+filter_iterator_test() ->
+    Root = build_test_tree(),
     Filter = [r, any, b],
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
     Expected = [
         [r, a, b],
         [r, g, b]
+    ],
+    Expected = lists:reverse(Actual).
+
+filter_iterator_single_test() ->
+    Root = build_test_tree(),
+    Filter = [r, a, b],
+    {FilterIt, FilterAcc} = create_filter_iterator(Filter),
+    {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
+    Expected = [
+        [r, a, b]
     ],
     Expected = lists:reverse(Actual).
