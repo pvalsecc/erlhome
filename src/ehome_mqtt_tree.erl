@@ -49,15 +49,17 @@ iterate(Iterator, Acc) ->
 dump() ->
     iterate(fun ehome_vtree:dumper/2, "").
 
+-spec list([any | any()]) -> list().
 list(Filter) ->
     {FilterIt, FilterAcc} = ehome_vtree:create_filter_iterator(Filter),
     {[], [], Filter, Result} = iterate(FilterIt, FilterAcc),
     lists:reverse(Result).
 
+-spec get_value(list()) -> any().
 get_value(Path) ->
     gen_server:call(?MODULE, {get_value, Path}).
 
-fake_switch(DeviceId, InstanceId, Value) ->  %for test only
+fake_switch(DeviceId, InstanceId, Value) when is_boolean(Value) ->%for test only
     Topic = lists:flatten(io_lib:format(
         "zwave/get/devices/~w/instances/~w/commandClasses/37/data/level",
         [DeviceId, InstanceId])),

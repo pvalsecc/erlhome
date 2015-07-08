@@ -38,7 +38,7 @@ Ext.application({
                             {
                                 region: 'west',
                                 split: true,
-                                width: 200,
+                                width: 300,
                                 height: '100%',
                                 items: [devicesGrid]
                             }
@@ -221,8 +221,7 @@ function createDevicesGrid() {
         plugins: [createRowEditing(devicesStore)],
         store: devicesStore,
         columns: [
-            {text: 'Name', dataIndex: 'name', width: '30%', editor:
-            'textfield'},
+            {text: 'Id', dataIndex: 'name', width: '20%'},
             {text: 'Description', dataIndex: 'desc', width: '70%', editor:
             'textfield'},
         ],

@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, get_map/0, set/2]).
+-export([start_link/1, get_map/0, set/2, remove/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -47,8 +47,11 @@ get_map() ->
     Pmap = gen_server:call(?SERVER, get_pmap),
     ehome_pmap:get_map(Pmap).
 
-set(Key, Value) when is_binary(Key) and is_binary(Value) ->
+set(Key, Value) when is_binary(Value) ->
     gen_server:cast(?SERVER, {set, Key, Value}).
+
+remove(Key) ->
+    gen_server:cast(?SERVER, {remove, Key}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -104,6 +107,8 @@ handle_call(_Request, _From, State) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({set, Key, Value}, #state{pmap = Pmap} = State) ->
     {noreply, State#state{pmap = ehome_pmap:set(Pmap, Key, Value)}};
+handle_cast({remove, Key}, #state{pmap = Pmap} = State) ->
+    {noreply, State#state{pmap = ehome_pmap:remove(Pmap, Key)}};
 handle_cast(_Request, State) ->
     {noreply, State}.
 
