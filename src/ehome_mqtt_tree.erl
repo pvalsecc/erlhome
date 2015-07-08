@@ -66,7 +66,6 @@ fake_switch(DeviceId, InstanceId, Value) when is_boolean(Value) ->%for test only
     gen_server:cast(?MODULE, {from_mqtt, Topic, erlang2mqtt(Value)}),
     Topic.
 
-
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -148,9 +147,7 @@ handle_cast({to_mqtt, Topic, Value}, State) ->
     {noreply, State};
 handle_cast({control_mqtt, Topic, Value}, State) ->
     TopicMqtt = build_control_name(Topic),
-    Message = erlang2mqtt(Value),
-    lager:info("controlMQTT: ~s = ~p", [TopicMqtt, Value]),
-    publish(TopicMqtt, Message, State),
+    publish(TopicMqtt, Value, State),
     {noreply, State};
 handle_cast(Request, State) ->
     lager:error("Unknown handle_cast: ~p", [Request]),
