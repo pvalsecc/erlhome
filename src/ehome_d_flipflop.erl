@@ -14,21 +14,16 @@
 %% API
 -export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/2]).
 
--record(state, {
-    value = false :: boolean(),
-    prev_clock = false :: boolean()
-}).
-
 start_link(SchemaId, Id) ->
     ehome_element:start_link(SchemaId, Id, ehome_d_flipflop, 2, 1, []).
 
 init(_Args) ->
-    {[false], #state{}}.
+    {[false], undefined}.
 
-new_inputs([D, true], _OldInputs, #state{prev_clock = false} = State) ->
-    {new_outputs, [D], State#state{value = D, prev_clock = true}};
-new_inputs([_D, Clock], _OldInputs, #state{value = Value} = State) ->
-    {new_outputs, [Value], State#state{prev_clock = Clock}}.
+new_inputs([D, true], [_, false], State) ->
+    {new_outputs, [D], State};
+new_inputs([_D, _Clock], _OldInputs, State) ->
+    State.
 
 iterate_status(_Callback, Acc, _Inner) ->
     Acc.

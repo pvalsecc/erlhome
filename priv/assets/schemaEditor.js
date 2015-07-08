@@ -73,7 +73,7 @@ function createBox11Class(type, text) {
 }
 
 createBox21Class('Timer', 'start\nreset');
-createBox21Class('DFlipFlop', 'D\nclock');
+createBox21Class('DFlipFlop', 'D\nclock↑');
 createBox21Class('ForceOff', 'in\noff');
 createBox21Class('Module', 'on↑\noff↑');
 createBox11Class('UpEdge', 'up edge');
