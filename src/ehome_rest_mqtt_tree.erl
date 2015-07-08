@@ -56,15 +56,17 @@ to_json(Req, List) ->
     Names = ehome_names:get_map(),
     {jiffy:encode(format(List, Names)), Req, List}.
 
-format([], _Names) ->
-    [];
-format([[DeviceId, InstanceId | _] = All | Rest], Names) ->
+format(Entries, Names) ->
+    lists:filtermap(fun(Cur) -> format_one(Cur, Names) end, Entries).
+
+format_one([1 | _], _Names) ->
+    false;
+format_one([DeviceId, InstanceId | _] = All, Names) ->
     Name = io_lib:format("~p/~p", [DeviceId, InstanceId]),
     BinName = list_to_binary(Name),
     Desc = maps:get([DeviceId, InstanceId], Names, BinName),
     Id = io_lib:format("~p", [All]),
-    [#{name => BinName, desc => Desc, id => list_to_binary(Id)} |
-        format(Rest, Names)].
+    {true, #{name => BinName, desc => Desc, id => list_to_binary(Id)}}.
 
 from_json(Req, [[DeviceId, InstanceId, switch_binary, "level"]] = What) ->
     {ok, Json, Req2} = cowboy_req:body(Req),
