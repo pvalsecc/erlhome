@@ -286,35 +286,35 @@ stop() ->
     gen_server:call(?SERVER, stop).
 
 nominal_test() ->
-    start_link(),
-    Recorder1 = subscribe_recorder([1,2,3]),
-    Recorder2 = subscribe_recorder([toto,2,3]),
-    Recorder3 = subscribe_recorder([toto,any,3]),
-    Recorder4 = subscribe_recorder([toto,all]),
+    test_utils:dispatcher_env(fun() ->
+        Recorder1 = subscribe_recorder([1,2,3]),
+        Recorder2 = subscribe_recorder([toto,2,3]),
+        Recorder3 = subscribe_recorder([toto,any,3]),
+        Recorder4 = subscribe_recorder([toto,all]),
 
-    sync(),
-    [] = get_recorded(Recorder1),
-    [] = get_recorded(Recorder2),
-    [] = get_recorded(Recorder3),
-    [] = get_recorded(Recorder4),
+        sync(),
+        [] = get_recorded(Recorder1),
+        [] = get_recorded(Recorder2),
+        [] = get_recorded(Recorder3),
+        [] = get_recorded(Recorder4),
 
-    ok = publish([toto, 2, 3], 1),
-    sync(),
-    [] = get_recorded(Recorder1),
-    [{[toto, 2, 3], 1}] = get_recorded(Recorder2),
-    [{[toto, 2, 3], 1}] = get_recorded(Recorder3),
-    [{[toto, 2, 3], 1}] = get_recorded(Recorder4),
+        ok = publish([toto, 2, 3], 1),
+        sync(),
+        [] = get_recorded(Recorder1),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder2),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder3),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder4),
 
-    ok = unsubscribe(Recorder4),
-    ok = publish([toto, 2, 3], 2),
-    sync(),
-    [] = get_recorded(Recorder1),
-    [{[toto, 2, 3], 2}] = get_recorded(Recorder2),
-    [{[toto, 2, 3], 2}] = get_recorded(Recorder3),
-    [] = get_recorded(Recorder4),
-    ok = stop().
+        ok = unsubscribe(Recorder4),
+        ok = publish([toto, 2, 3], 2),
+        sync(),
+        [] = get_recorded(Recorder1),
+        [{[toto, 2, 3], 2}] = get_recorded(Recorder2),
+        [{[toto, 2, 3], 2}] = get_recorded(Recorder3),
+        [] = get_recorded(Recorder4)
+    end).
 
 no_subscriber_test() ->
-    start_link(),
-    ok = publish([toto, 2, 3], 1),
-    ok = stop().
+    test_utils:dispatcher_env(fun() ->
+        ok = publish([toto, 2, 3], 1)
+    end).
