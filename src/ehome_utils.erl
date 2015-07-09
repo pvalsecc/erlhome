@@ -10,7 +10,7 @@
 -author("patrick").
 
 %% API
--export([id2str/1, parse_path/1, maybe/2]).
+-export([id2str/1, parse_path/1, maybe/2, to_string/1]).
 
 id2str(Id) ->
     binary:list_to_bin(integer_to_list(Id)).
@@ -42,3 +42,9 @@ parse_path(Path) when is_list(Path) ->
 maybe(undefined, A) -> A;
 maybe(A, _) -> A.
 
+to_string(List) when is_list(List) ->
+    List;
+to_string(Atom) when is_atom(Atom) ->
+    atom_to_list(Atom);
+to_string(Number) when is_integer(Number) ->
+    integer_to_list(Number).

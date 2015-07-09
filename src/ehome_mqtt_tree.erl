@@ -263,7 +263,7 @@ build_topic_name([Device, Instance, Class | Rest]) ->
     string:join(List, "/").
 
 build_control_name([Command]) ->
-    List = ["zwave", "control", Command],
+    List = ["zwave", "control", ehome_utils:to_string(Command)],
     string:join(List, "/").
 
 to_path(Device, Instance, Class, Rest) ->

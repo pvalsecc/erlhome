@@ -3,7 +3,7 @@
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
 %%% Structure of the subscription tree:
-%%%   db     notifs for DB modifications
+%%%   db        %notifs for DB modifications
 %%%       create
 %%%           {element|connection}
 %%%               {SchemaId}
@@ -12,7 +12,14 @@
 %%%       update
 %%%           element/{SchemaId}/{SubId} -> {New :: #element{}, Old ::#element{}}
 %%%           connection/{SchemaId}/{SubId} -> {New :: #connection{}, Old ::#connection{}}
-%%%       mqtt/{deviceId}/{instanceId}/{class}/... -> Value
+%%%   status    %element's state (mostly for the websocket)
+%%%       connection/{SchemaId}/{SubId} -> boolean()
+%%%       switch/{SchemaId}/{SubId} -> boolean()
+%%%       relay/{SchemaId}/{SubId} -> boolean()
+%%%   mqtt      %stuff to/from mqtt
+%%%       get/{DeviceId}/{InstanceId}/{Class}/... -> any()
+%%%       set/{DeviceId}/{InstanceId}/{Class}/... -> any()
+%%%       control/{Command} -> any()
 %%% @end
 %%% Created : 02. May 2015 09:50
 %%%-------------------------------------------------------------------

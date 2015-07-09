@@ -208,7 +208,7 @@ function createSchemaToolbarHandler(graph, type) {
             x: 50, y: 50
         })[0];
         graph.elementStore.sync({
-            callback: function() {
+            success: function() {
                 graph.addCell(createCell(model));
                 replayStatusCacheFor(graph, model.get('id'));
             }
