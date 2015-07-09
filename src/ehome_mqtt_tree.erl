@@ -410,8 +410,9 @@ retry_connect_mqtt() ->
     lager:warning("Re-try to connect MQTT in 2s"),
     timer:sleep(2*1000),
     try
-        connect_mqtt(),
-        lager:warning("Connection with MQTT re-established")
+        Mqtt = connect_mqtt(),
+        lager:warning("Connection with MQTT re-established"),
+        Mqtt
     catch
         _:_ -> retry_connect_mqtt()
     end .
