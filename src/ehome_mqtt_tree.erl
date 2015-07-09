@@ -214,7 +214,7 @@ mqtt2erlang(<<1:8, 0:8>>) ->
     false;
 mqtt2erlang(<<1:8, _:8>>) ->
     true;
-mqtt2erlang(<<2:8, Val:32/integer-native>>) ->
+mqtt2erlang(<<2:8, Val:32/signed>>) ->
     Val;
 mqtt2erlang(<<3:8, Val:32/float-native>>) ->
     Val;
@@ -232,7 +232,7 @@ erlang2mqtt(false) ->
 erlang2mqtt(true) ->
     <<1:8, 1:8>>;
 erlang2mqtt(Val) when is_integer(Val) ->
-    <<2:8, Val:32/integer-native>>;
+    <<2:8, Val:32/signed>>;
 erlang2mqtt(Val) when is_float(Val) ->
     <<3:8, Val:32/float-native>>;
 erlang2mqtt(Val) when is_list(Val) ->
