@@ -56,7 +56,7 @@ joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
                         magnet: 'passive', port: 'in1' },
             '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
                          magnet: true, port: 'out1' },
-            text: {'text-transform': 'none'}
+            text: {'text-transform': 'none', 'ref-x': 0, 'text-anchor': 'left'}
         }
     }, joint.shapes.logic.IO.prototype.defaults)
 });
@@ -74,11 +74,11 @@ function createBox11Class(type, text) {
 
 createBox21Class('Timer', 'start↑\nreset↑');
 createBox21Class('DFlipFlop', 'D\nclock↑');
-createBox21Class('ForceOff', 'in\noff');
+createBox21Class('ForceOff', 'in\noff↑');
 createBox21Class('Module', 'on↑\noff↑');
-createBox11Class('UpEdge', 'up edge');
-createBox11Class('DownEdge', 'down edge');
-createBox11Class('BothEdge', 'both edge');
+createBox11Class('UpEdge', '↑edge');
+createBox11Class('DownEdge', '↓edge');
+createBox11Class('BothEdge', '↕edge');
 
 var TYPE2SHAPE = {
     'switch': joint.shapes.logic.Input,

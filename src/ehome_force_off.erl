@@ -24,9 +24,9 @@ start_link(SchemaId, Id) ->
 init(_Args) ->
     {[false], #state{}}.
 
-new_inputs([Main, true], _OldInputs, State) ->
+new_inputs([Main, true], [_, false], State) ->
     {new_outputs, [false], State#state{xor_value = Main}};
-new_inputs([Main, false], _OldInputs, #state{xor_value = Xor} = State) ->
+new_inputs([Main, _], _OldInputs, #state{xor_value = Xor} = State) ->
     {new_outputs, [Main xor Xor], State}.
 
 iterate_status(_Callback, Acc, _Inner) ->
