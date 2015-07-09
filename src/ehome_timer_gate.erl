@@ -31,29 +31,26 @@ init(#{<<"delay">> := Delay}) ->
 init(_) ->
     {[false], #state{delay = 2000}}.
 
-new_inputs([false, false], _OldInputs, State) ->
-    State;
+new_inputs([_, true], [_, false], #state{waiting = TRef} = State) ->
+    % reset
+    maybe_cancel(TRef),
+    {new_outputs, [false], State#state{waiting = false}};
 
-new_inputs([true, false], _OldInputs,
+new_inputs([true, _], [false, _],
         #state{delay = 0, waiting = false} = State) ->
-    % special case for delay = 0
+    % start; special case for delay = 0
     {new_outputs, [true], State};
 
-new_inputs([true, false], _OldInputs,
+new_inputs([true, _], [false, _],
         #state{delay = Delay, waiting = false} = State) ->
-    % triggering the timer
+    % start; triggering the timer
     {ok, TRef} = timer:apply_after(Delay,
         ehome_element, new_outputs, [self(), [true]]),
     State#state{waiting = TRef};
 
-new_inputs([true, false], _OldInputs, State) ->
-    % already triggered
-    State;
+new_inputs(_NewInputs, _OldInputs, State) ->
+    State.
 
-new_inputs([_, true], _OldInputs, #state{waiting = TRef} = State) ->
-    % reset
-    maybe_cancel(TRef),
-    {new_outputs, [false], State#state{waiting = false}}.
 
 iterate_status(_Callback, Acc, _Inner) ->
     Acc.
