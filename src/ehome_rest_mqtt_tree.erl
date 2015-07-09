@@ -32,12 +32,12 @@ resource_exists(Req, _State) ->
     Kind = cowboy_req:binding(kind, Req),
     Id = cowboy_req:binding(id, Req),
     Filter = case Kind of
-        undefined -> case Id of
-                 undefined -> index;
-                 <<"switch_binary">> -> [any, any, switch_binary, "level"];
-                 _ -> undefined
+        undefined -> index;
+        <<"switch_binary">> -> case Id of
+                 undefined -> [any, any, switch_binary, "level"];
+                 _ -> ehome_utils:parse_path(Id)
              end;
-        _ -> ehome_utils:parse_path(Id)
+        _ -> undefined
     end,
     case Filter of
         undefined -> {false, Req, index};
