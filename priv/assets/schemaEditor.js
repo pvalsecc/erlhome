@@ -306,6 +306,7 @@ function displayTimerForm(graph, element) {
 function displayModuleForm(graph, element) {
     displayForm(graph, element, 'Module params', [{
         xtype: 'combo',
+        width: 300,
         fieldLabel: 'Z-wave device',
         name: 'mqtt_path',
         store: createZwaveStore('switch_binary'),

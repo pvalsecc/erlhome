@@ -75,7 +75,7 @@ subscribe(Path) ->
 force(#state{status = Value} = State, Value) ->
     State; %no value change
 force(State, Value) ->
-    notif_mqtt(State, Value).
+    notif_mqtt(State, Value). %TODO: repeat if no feedback is comming after 2s
 
 notif_web(#state{schema_id = SchemaId, id = Id, status = Status} = State) ->
     ehome_dispatcher:publish([status, switch, SchemaId, Id], Status),
