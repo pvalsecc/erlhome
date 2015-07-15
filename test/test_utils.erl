@@ -10,7 +10,8 @@
 -author("pvalsecc").
 
 %% API
--export([wait_queue_empty/1, wait_queues_empty/1, dispatcher_env/1, mqtt_tree_env/1]).
+-export([wait_queue_empty/1, wait_queues_empty/1, dispatcher_env/1,
+    mqtt_tree_env/1, app_env_env/3]).
 
 wait_queues_empty(Pids) ->
     lists:foreach(fun wait_queue_empty/1, Pids).
@@ -28,15 +29,24 @@ dispatcher_env(Test) ->
         ehome_dispatcher:stop()
     end.
 
+app_env_env(EnvName, EnvValue, Test) ->
+    Orig = application:get_env(erlhome, EnvName),
+
+    application:set_env(erlhome, EnvName, EnvValue),
+    try
+        Test()
+    after
+        application:set_env(erlhome, EnvName, Orig)
+    end.
+
 mqtt_tree_env(Test) ->
     dispatcher_env(fun() ->
-        PrevMqtt = application:get_env(erlhome, enable_mqtt),
-        application:set_env(erlhome, enable_mqtt, false),
-        ehome_mqtt_tree:start_link(),
-        try
-            Test()
-        after
-            gen_server:call(ehome_mqtt_tree, stop),
-            application:set_env(erlhome, enable_mqtt, PrevMqtt)
-        end
+        app_env_env(enable_mqtt, false, fun() ->
+            ehome_mqtt_tree:start_link(),
+            try
+                Test()
+            after
+                gen_server:call(ehome_mqtt_tree, stop)
+            end
+        end)
     end).
