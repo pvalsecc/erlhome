@@ -69,7 +69,7 @@ format_one({[DeviceId, InstanceId | _] = All, Value}, Names) ->
     {true, #{name => BinName, desc => Desc, id => list_to_binary(Id),
              value => Value}}.
 
-from_json(Req, [[DeviceId, InstanceId, switch_binary, "level"]] = What) ->
+from_json(Req, [{[DeviceId, InstanceId, switch_binary, "level"], _Value}] = What) ->
     {ok, Json, Req2} = cowboy_req:body(Req),
     #{<<"desc">> := Desc} = json2sub(Json),
     ehome_names:set([DeviceId, InstanceId], Desc),
