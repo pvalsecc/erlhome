@@ -113,6 +113,9 @@ create_filter_iterator(Filter) ->
         {[], [], Filter, []}
     }.
 
+dumper({start, Name, undefined}, Indent) ->
+    io:format("~s~p~n", [Indent, Name]),
+    {fun dumper/2, "    " ++ Indent};
 dumper({start, Name, Value}, Indent) ->
     io:format("~s~p = ~p~n", [Indent, Name, Value]),
     {fun dumper/2, "    " ++ Indent};
