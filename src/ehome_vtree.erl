@@ -71,6 +71,18 @@ iterate_subs_impl(Iterator, Acc, [{Name, Sub} | Rest]) ->
 noop_iterator(_, Acc) ->
     {undefined, Acc}.
 
+all_iterator({start, Name, _Value}, {CurPath, PrevFilters, [], Results}) ->
+    io:format("name=~p~n", [Name]),
+    NextPath = [Name|CurPath],
+    NextResults = [lists:reverse(NextPath)|Results],
+    {undefined, {NextPath, PrevFilters, [], NextResults}};
+all_iterator({stop, Name}, {[Name | CurPath], PrevFilters, FRest, Results}) ->
+    {undefined, {CurPath, PrevFilters, FRest, Results}}.
+
+apply_filter(Name, {CurPath, PrevFilters, [all], Results}) ->
+    NextPath = [Name|CurPath],
+    NextResults = [lists:reverse(NextPath)|Results],
+    {fun all_iterator/2, {NextPath, [all|PrevFilters], [], NextResults}};
 apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
     NextPath = [Name|CurPath],
     NextResults = case FHead of
@@ -78,7 +90,7 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
                       Name -> [lists:reverse(NextPath)|Results];
                       _ -> Results
                   end,
-    {fun ehome_vtree:noop_iterator/2,
+    {fun noop_iterator/2,
         {NextPath, [FHead|PrevFilters], [], NextResults}};
 apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
     Acc = {[Name|CurPath], [FHead|PrevFilters], FRest, Results},
@@ -88,7 +100,7 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
         _ -> {fun ehome_vtree:noop_iterator/2, Acc}
     end.
 
--spec create_filter_iterator([any | any()]) ->
+-spec create_filter_iterator([all | any | any()]) ->
     {IteratorFun :: iterator(), IteratorAcc :: any()}.
 create_filter_iterator(Filter) ->
     {
@@ -199,3 +211,16 @@ filter_iterator_single_test() ->
         [r, a, b]
     ],
     Expected = lists:reverse(Actual).
+
+filter_iterator_all_test() ->
+    Root = build_test_tree(),
+    Filter = [r, a, all],
+    {FilterIt, FilterAcc} = create_filter_iterator(Filter),
+    {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
+    Expected = [
+        [r, a, b],
+        [r, a, d],
+        [r, a, d, e]
+    ],
+    Expected = lists:reverse(Actual).
+
