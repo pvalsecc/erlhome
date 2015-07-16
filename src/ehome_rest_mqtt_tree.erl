@@ -59,14 +59,15 @@ to_json(Req, List) ->
 format(Entries, Names) ->
     lists:filtermap(fun(Cur) -> format_one(Cur, Names) end, Entries).
 
-format_one([1 | _], _Names) ->
+format_one({[1 | _], _Value}, _Names) ->
     false;
-format_one([DeviceId, InstanceId | _] = All, Names) ->
+format_one({[DeviceId, InstanceId | _] = All, Value}, Names) ->
     Name = io_lib:format("~p/~p", [DeviceId, InstanceId]),
     BinName = list_to_binary(Name),
     Desc = maps:get([DeviceId, InstanceId], Names, BinName),
     Id = io_lib:format("~p", [All]),
-    {true, #{name => BinName, desc => Desc, id => list_to_binary(Id)}}.
+    {true, #{name => BinName, desc => Desc, id => list_to_binary(Id),
+             value => Value}}.
 
 from_json(Req, [[DeviceId, InstanceId, switch_binary, "level"]] = What) ->
     {ok, Json, Req2} = cowboy_req:body(Req),

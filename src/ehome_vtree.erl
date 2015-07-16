@@ -71,28 +71,28 @@ iterate_subs_impl(Iterator, Acc, [{Name, Sub} | Rest]) ->
 noop_iterator(_, Acc) ->
     {undefined, Acc}.
 
-all_iterator({start, Name, _Value}, {CurPath, PrevFilters, [], Results}) ->
+all_iterator({start, Name, Value}, {CurPath, PrevFilters, [], Results}) ->
     io:format("name=~p~n", [Name]),
     NextPath = [Name|CurPath],
-    NextResults = [lists:reverse(NextPath)|Results],
+    NextResults = [{lists:reverse(NextPath), Value} | Results],
     {undefined, {NextPath, PrevFilters, [], NextResults}};
 all_iterator({stop, Name}, {[Name | CurPath], PrevFilters, FRest, Results}) ->
     {undefined, {CurPath, PrevFilters, FRest, Results}}.
 
-apply_filter(Name, {CurPath, PrevFilters, [all], Results}) ->
+apply_filter(Name, Value, {CurPath, PrevFilters, [all], Results}) ->
     NextPath = [Name|CurPath],
-    NextResults = [lists:reverse(NextPath)|Results],
+    NextResults = [{lists:reverse(NextPath), Value} | Results],
     {fun all_iterator/2, {NextPath, [all|PrevFilters], [], NextResults}};
-apply_filter(Name, {CurPath, PrevFilters, [FHead], Results}) ->
+apply_filter(Name, Value, {CurPath, PrevFilters, [FHead], Results}) ->
     NextPath = [Name|CurPath],
     NextResults = case FHead of
-                      any -> [lists:reverse(NextPath)|Results];
-                      Name -> [lists:reverse(NextPath)|Results];
+                      any -> [{lists:reverse(NextPath), Value} | Results];
+                      Name -> [{lists:reverse(NextPath), Value} | Results];
                       _ -> Results
                   end,
     {fun noop_iterator/2,
         {NextPath, [FHead|PrevFilters], [], NextResults}};
-apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
+apply_filter(Name, _Value, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
     Acc = {[Name|CurPath], [FHead|PrevFilters], FRest, Results},
     case FHead of
         any -> {undefined, Acc};
@@ -104,8 +104,8 @@ apply_filter(Name, {CurPath, PrevFilters, [FHead|FRest], Results}) ->
     {IteratorFun :: iterator(), IteratorAcc :: any()}.
 create_filter_iterator(Filter) ->
     {
-        fun({start, Name, _Value}, Acc) ->
-                apply_filter(Name, Acc);
+        fun({start, Name, Value}, Acc) ->
+                apply_filter(Name, Value, Acc);
            ({stop, Name},
                     {[Name | CurPath], [FHead|PrevFilters], FRest, Results}) ->
                 {undefined, {CurPath, PrevFilters, [FHead|FRest], Results}}
@@ -197,8 +197,8 @@ filter_iterator_test() ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
     Expected = [
-        [r, a, b],
-        [r, g, b]
+        {[r, a, b], 2},
+        {[r, g, b], 6}
     ],
     Expected = lists:reverse(Actual).
 
@@ -208,7 +208,7 @@ filter_iterator_single_test() ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
     Expected = [
-        [r, a, b]
+        {[r, a, b],2}
     ],
     Expected = lists:reverse(Actual).
 
@@ -218,9 +218,9 @@ filter_iterator_all_test() ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
     Expected = [
-        [r, a, b],
-        [r, a, d],
-        [r, a, d, e]
+        {[r, a, b], 2},
+        {[r, a, d], 3},
+        {[r, a, d, e], 4}
     ],
     Expected = lists:reverse(Actual).
 

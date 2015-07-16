@@ -26,10 +26,11 @@ end_per_testcase(TestCase, Config) ->
 
 %% Tests ============================
 
-expected(DeviceId, InstanceId) ->
+expected(DeviceId, InstanceId, Value) ->
     Id = io_lib:format("~p", [[DeviceId, InstanceId, switch_binary, "level"]]),
     Desc = io_lib:format("~p/~p", [DeviceId, InstanceId]),
-    #{id => lists:flatten(Id), desc => lists:flatten(Desc), name => lists:flatten(Desc)}.
+    #{id => lists:flatten(Id), desc => lists:flatten(Desc),
+        name => lists:flatten(Desc), value => Value}.
 
 switch_binary(_Config) ->
     ehome_mqtt_tree:fake_switch(2, 0, true),
@@ -38,9 +39,9 @@ switch_binary(_Config) ->
     ehome_mqtt_tree:fake_switch(3, 0, false),
     Actual = rest_utils:get_json("/zwave/switch_binary"),
     Expected = [
-        expected(2, 0),
-        expected(2, 1),
-        expected(2, 2),
-        expected(3, 0)
+        expected(2, 0, true),
+        expected(2, 1, false),
+        expected(2, 2, true),
+        expected(3, 0, false)
     ],
     Expected = Actual.
