@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, dump/0, iterate/2, list/1, fake_switch/3, get_value/1]).
+-export([start_link/0, dump/0, iterate/2, list/1, fake_switch/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -54,10 +54,6 @@ list(Filter) ->
     {FilterIt, FilterAcc} = ehome_vtree:create_filter_iterator(Filter),
     {[], [], Filter, Result} = iterate(FilterIt, FilterAcc),
     lists:reverse(Result).
-
--spec get_value(list()) -> any().
-get_value(Path) ->
-    gen_server:call(?MODULE, {get_value, Path}).
 
 fake_switch(DeviceId, InstanceId, Value) when is_boolean(Value) ->%for test only
     Topic = lists:flatten(io_lib:format(
@@ -118,8 +114,6 @@ init([]) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_call({iterate, Iterator, Acc}, _From, #state{cache = Root} = State) ->
     {reply, ehome_vtree:iterate_subs(Iterator, Acc, Root), State};
-handle_call({get_value, Path}, _From, #state{cache = Root} = State) ->
-    {reply, ehome_vtree:get_value(Path, Root), State};
 handle_call(stop, _From, State) ->
     {stop, normal, ok, State};
 handle_call(Request, _From, State) ->
