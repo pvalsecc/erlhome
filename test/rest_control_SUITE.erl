@@ -46,6 +46,7 @@ switch(Config) ->
     IdSwitch = rest_utils:get_config(id_switch, Config),
     IdRelay = rest_utils:get_config(id_relay, Config),
     IdConnection = rest_utils:get_config(id_connection, Config),
+    dispatcher_recorder:get_events(),
     send_control("switch", IdSwitch, true),
     Expected = [
         {[status, switch, IdSchema, IdSwitch], true},
@@ -61,6 +62,7 @@ toggle(Config) ->
     IdSwitch = rest_utils:get_config(id_switch, Config),
     IdRelay = rest_utils:get_config(id_relay, Config),
     IdConnection = rest_utils:get_config(id_connection, Config),
+    dispatcher_recorder:get_events(),
     send_control("toggle", IdSwitch, true),
     Expected = [
         {[status, switch, IdSchema, IdSwitch], true},

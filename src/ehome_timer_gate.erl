@@ -14,7 +14,7 @@
 %% API
 -export([start_link/3]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -record(state, {
     delay = 2000 :: non_neg_integer(),
@@ -31,29 +31,27 @@ init(#{<<"delay">> := Delay}) ->
 init(_) ->
     {[false], #state{delay = 2000}}.
 
-new_inputs([_, true], [_, false], #state{waiting = TRef} = State) ->
+new_inputs([_, true], [_, false], State) ->
     % reset
-    maybe_cancel(TRef),
+    maybe_cancel(State),
     {new_outputs, [false], State#state{waiting = false}};
 
 new_inputs([true, _], [false, _],
         #state{delay = 0, waiting = false} = State) ->
     % start; special case for delay = 0
+    maybe_cancel(State),
     {new_outputs, [true], State};
 
 new_inputs([true, _], [false, _],
-        #state{delay = Delay, waiting = false} = State) ->
-    % start; triggering the timer
+        #state{delay = Delay} = State) ->
+    % start; trigger the timer
+    maybe_cancel(State),
     {ok, TRef} = timer:apply_after(Delay,
         ehome_element, new_outputs, [self(), [true]]),
     State#state{waiting = TRef};
 
 new_inputs(_NewInputs, _OldInputs, State) ->
     State.
-
-
-iterate_status(_Callback, Acc, _Inner) ->
-    Acc.
 
 control(config, #{<<"delay">> := Delay}, State) ->
     State#state{delay = Delay};
@@ -64,6 +62,8 @@ control(Type, Message, _Inner) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+maybe_cancel(#state{waiting = TRef}) ->
+    maybe_cancel(TRef);
 maybe_cancel(false) ->
     ok;
 maybe_cancel(TRef) ->

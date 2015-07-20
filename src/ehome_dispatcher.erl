@@ -29,7 +29,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, subscribe/3, publish/2, stop/0, unsubscribe/1]).
+-export([start_link/0, subscribe/3, publish/3, stop/0, unsubscribe/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -53,7 +53,8 @@
 
 -record(node, {
     listeners = [] :: [{SubscribeId :: any(), listener()}],
-    childs = #{} :: #{node_id() => node()}
+    childs = #{} :: #{node_id() => node()},
+    value = undefined
 }).
 
 %%%===================================================================
@@ -74,15 +75,15 @@ start_link() ->
 -spec(subscribe(Path :: path(), SubscribeId :: any(),
                 Listener :: listener()) -> ok).
 subscribe(Path, SubscribeId, Listener) ->
-    gen_server:call(?SERVER, {subscribe, Path, SubscribeId, Listener}).
+    gen_server:cast(?SERVER, {subscribe, Path, SubscribeId, Listener}).
 
 -spec(unsubscribe(SubscribeId :: any()) -> ok).
 unsubscribe(SubscribeId) ->
-    gen_server:call(?SERVER, {unsubscribe, SubscribeId}).
+    gen_server:cast(?SERVER, {unsubscribe, SubscribeId}).
 
--spec(publish(Path :: path(), Value :: any()) -> ok).
-publish(Path, Value) ->
-    gen_server:cast(?SERVER, {publish, Path, Value}).
+-spec(publish(Path :: path(), Value :: any(), Store :: boolean()) -> ok).
+publish(Path, Value, Store) ->
+    gen_server:cast(?SERVER, {publish, Path, Value, Store}).
 
 %% @doc
 %% Make sure the dispatcher has processed every events by sending a synchronous
@@ -127,10 +128,6 @@ init([]) ->
     {noreply, NewState :: #node{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #node{}} |
     {stop, Reason :: term(), NewState :: #node{}}).
-handle_call({subscribe, Path, SubscribeId, Listener}, _From, State) ->
-    {reply, ok, subscribe(Path, SubscribeId, Listener, State)};
-handle_call({unsubscribe, SubscribeId}, _From, State) ->
-    {reply, ok, unsubscribe(SubscribeId, State)};
 handle_call(stop, _From, State) ->  %UTs only
     {stop, normal, ok, State};
 handle_call(sync, _From, State) ->  %UTs only
@@ -147,10 +144,15 @@ handle_call(sync, _From, State) ->  %UTs only
     {noreply, NewState :: #node{}} |
     {noreply, NewState :: #node{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #node{}}).
-handle_cast({publish, Path, Value}, State) ->
+handle_cast({subscribe, Path, SubscribeId, Listener}, State) ->
+    notify_previous(Path, Listener, State),
+    {noreply, subscribe(Path, SubscribeId, Listener, State)};
+handle_cast({unsubscribe, SubscribeId}, State) ->
+    {noreply, unsubscribe(SubscribeId, State)};
+handle_cast({publish, Path, Value, Store}, State) ->
     lager:debug("publish ~p = ~p", [Path, Value]),
-    publish(Path, Value, State),
-    {noreply, State};
+    NewState = publish(Path, Value, Store, State),
+    {noreply, NewState};
 handle_cast(_Request, State) ->
     {noreply, State}.
 
@@ -217,7 +219,7 @@ filter_map(Fun, Map) ->
     EmptyMap = #{},
     maps:fold(fun(K, V, Acc) ->
         case Fun(K, V) of
-            #node{listeners = [], childs = EmptyMap} ->
+            #node{listeners = [], childs = EmptyMap, value = undefined} ->
                 Acc;
             Node ->
                 maps:put(K, Node, Acc)
@@ -231,24 +233,66 @@ unsubscribe(SubscribeId, #node{listeners = Listeners, childs = Childs} = Node) -
     NewChilds = filter_map(fun(_K, V) -> unsubscribe(SubscribeId, V) end, Childs),
     Node#node{listeners = NewListeners, childs = NewChilds}.
 
-publish(Path, Value, Node) ->
-    publish(Path, Path, Value, Node).
+publish(Path, Value, Store, Node) ->
+    publish(Path, Path, Value, Store, Node).
 
-publish(FullPath, [], Value, #node{listeners = Listeners}) ->
+publish(FullPath, [], Value, Store, #node{listeners = Listeners} = Node) ->
     lists:foreach(fun({_Id, Listener}) ->
         Listener(FullPath, Value)
-    end, Listeners);
-publish(FullPath, [CurPath | RestPath], Value, #node{childs = Childs}) ->
-    do_publish(FullPath, CurPath, RestPath, Value, Childs),
-    do_publish(FullPath, any, RestPath, Value, Childs),
-    do_publish(FullPath, all, [], Value, Childs).
+    end, Listeners),
+    maybe_store(Node, Value, Store);
+publish(FullPath, [CurPath | RestPath], Value, Store, #node{childs = Childs} = Node) ->
+    NewChilds = do_publish(FullPath, CurPath, RestPath, Value, Store, Childs),
+    do_publish(FullPath, any, RestPath, Value, false, Childs),
+    do_publish(FullPath, all, [], Value, false, Childs),
+    Node#node{childs = NewChilds}.
 
-do_publish(FullPath, CurPath, RestPath, Value, Childs) ->
-    case maps:get(CurPath, Childs, false) of
-        false ->
-            ok;
+do_publish(FullPath, CurPath, RestPath, Value, Store, Childs) ->
+    case maps:get(CurPath, Childs, undefined) of
+        undefined ->
+            maybe_store(Childs, CurPath, RestPath, Value, Store);
         Child ->
-            publish(FullPath, RestPath, Value, Child)
+            case publish(FullPath, RestPath, Value, Store, Child) of
+                Child -> Childs;
+                NewChild -> maps:put(CurPath, NewChild, Childs)
+            end
+    end.
+
+maybe_store(Childs, _CurPath, _RestPath, _Value, false) ->
+    Childs;
+maybe_store(Childs, CurPath, [], Value, true) ->
+    NewChild = #node{value = Value},
+    maps:put(CurPath, NewChild, Childs);
+maybe_store(Childs, CurPath, [NextPath | RestPath], Value, true) ->
+    NewChild = #node{childs = maybe_store(#{}, NextPath, RestPath, Value, true)},
+    maps:put(CurPath, NewChild, Childs).
+
+maybe_store(Node, _Value, false) ->
+    Node;
+maybe_store(Node, Value, true) ->
+    Node#node{value = Value}.
+
+notify_previous(Path, Listener, Node) ->
+    notify_previous(Path, [], Listener, Node).
+
+notify_previous([], _PrevPath, _Listener, #node{value = undefined}) ->
+    ok;
+notify_previous([], PrevPath, Listener, #node{value = Value}) ->
+    lager:debug("publish again ~p = ~p", [PrevPath, Value]),
+    Listener(lists:reverse(PrevPath), Value);
+notify_previous([all], PrevPath, Listener, #node{childs = Childs} = Node) ->
+    notify_previous([], PrevPath, Listener, Node),
+    lists:foreach(fun({NextPath, NextNode}) ->
+        notify_previous([all], [NextPath|PrevPath], Listener, NextNode)
+    end, maps:to_list(Childs));
+notify_previous([any|Rest], PrevPath, Listener, #node{childs = Childs}) ->
+    lists:foreach(fun({NextPath, NextNode}) ->
+        notify_previous(Rest, [NextPath|PrevPath], Listener, NextNode)
+    end, maps:to_list(Childs));
+notify_previous([Cur|Rest], PrevPath, Listener, #node{childs = Childs}) ->
+    case maps:get(Cur, Childs, undefined) of
+        undefined -> ok;
+        Child -> notify_previous(Rest, [Cur|PrevPath], Listener, Child)
     end.
 
 %%%===================================================================
@@ -298,7 +342,7 @@ nominal_test() ->
         [] = get_recorded(Recorder3),
         [] = get_recorded(Recorder4),
 
-        ok = publish([toto, 2, 3], 1),
+        ok = publish([toto, 2, 3], 1, false),
         sync(),
         [] = get_recorded(Recorder1),
         [{[toto, 2, 3], 1}] = get_recorded(Recorder2),
@@ -306,7 +350,7 @@ nominal_test() ->
         [{[toto, 2, 3], 1}] = get_recorded(Recorder4),
 
         ok = unsubscribe(Recorder4),
-        ok = publish([toto, 2, 3], 2),
+        ok = publish([toto, 2, 3], 2, false),
         sync(),
         [] = get_recorded(Recorder1),
         [{[toto, 2, 3], 2}] = get_recorded(Recorder2),
@@ -316,5 +360,25 @@ nominal_test() ->
 
 no_subscriber_test() ->
     test_utils:dispatcher_env(fun() ->
-        ok = publish([toto, 2, 3], 1)
+        ok = publish([toto, 2, 3], 1, false)
+    end).
+
+store_test() ->
+    test_utils:dispatcher_env(fun() ->
+        ok = publish([toto, 2, 3], 1, true),
+        ok = publish([toto, 4, 3], 1, false),
+
+        Recorder1 = subscribe_recorder([1,2,3]),
+        Recorder2 = subscribe_recorder([toto,2,3]),
+        Recorder3 = subscribe_recorder([toto,any,3]),
+        Recorder4 = subscribe_recorder([toto,all]),
+        Recorder5 = subscribe_recorder([toto,2,any]),
+
+        sync(),
+
+        [] = get_recorded(Recorder1),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder2),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder3),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder4),
+        [{[toto, 2, 3], 1}] = get_recorded(Recorder5)
     end).

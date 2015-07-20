@@ -15,7 +15,7 @@
 -export([not_start_link/2]).
 
 %% ehome_element callbacks
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -record(state, {
     function :: fun((boolean()) -> boolean)
@@ -34,9 +34,6 @@ init([Fun]) ->
 
 new_inputs([A], _OldInputs, #state{function = Fun} = State) ->
     {new_outputs, [Fun(A)], State}.
-
-iterate_status(_Callback, Acc, _Inner) ->
-    Acc.
 
 control(Type, Message, _Inner) ->
     io:format("ehome_11_gate: un-supported message ~p/~p~n",

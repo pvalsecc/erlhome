@@ -20,16 +20,13 @@
     NewInner :: any() |
     {new_outputs, NewOutputs :: [boolean()], NewInner :: any()}.
 
--callback iterate_status(Callback :: status_callback(), Acc :: any(),
-        Inner :: any()) -> any().
-
 -callback control(Type :: binary(), Message :: any(), Inner :: any()) ->
     {new_outputs, NewOutputs :: [boolean()], NewInner :: any()} |
     any()  | false.
 
 %% API
 -export([start_link/6, set_input/3, new_outputs/2, connect/5, disconnect/3,
-    get_inputs/1, get_outputs/1, stop/1, iterate_status/3, control/3]).
+    get_inputs/1, get_outputs/1, stop/1, control/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -92,11 +89,6 @@ get_inputs(Gate) ->
 stop(Gate) ->
     gen_server:cast(Gate, stop).
 
--spec(iterate_status(Gate :: pid(), Callback :: status_callback(),
-                     Acc :: any) -> any()).
-iterate_status(Gate, Callback, Acc) ->
-    gen_server:call(Gate, {iterate_status, Callback, Acc}).
-
 -spec(control(Gate :: pid(), Type :: binary() | atom(), Message :: any()) ->
     true|false).
 control(Gate, Type, Message) ->
@@ -154,13 +146,6 @@ handle_call(get_outputs, _From, #state{output_values = Outputs} = State) ->
     {reply, Outputs, State};
 handle_call(get_inputs, _From, #state{input_values = Inputs} = State) ->
     {reply, Inputs, State};
-handle_call({iterate_status, Callback, Acc}, _From,
-        #state{implementation = Impl, inner_state = Inner,
-            output_values = Values,
-            output_connections = Connections} = State) ->
-    Acc1 = Impl:iterate_status(Callback, Acc, Inner),
-    Acc2 = iterate_status_outputs(Callback, Acc1, Values, Connections),
-    {reply, Acc2, State};
 handle_call({control, Type, Message}, _From,
         #state{implementation = Impl, inner_state = Inner} = State) ->
     case Impl:control(Type, Message, Inner) of
@@ -319,24 +304,8 @@ notify_all(_Value, [], _State) ->
 notify_all(Value, [{Id, Pid, Input} | Rest],
         #state{schema_id = SchemaId} = State) ->
     set_input(Pid, Input, Value),
-    ehome_dispatcher:publish([status, connection, SchemaId, Id], Value),
+    ehome_dispatcher:publish([status, connection, SchemaId, Id], Value, true),
     notify_all(Value, Rest, State).
-
-iterate_status_outputs(_Callback, Acc, [], []) ->
-    Acc;
-iterate_status_outputs(Callback, Acc, [Value|VRest], [Connections|CRest]) ->
-    Acc1 = iterate_status_output(Callback, Acc, Value, Connections),
-    iterate_status_outputs(Callback, Acc1, VRest, CRest).
-
-iterate_status_output(_Callback, Acc, _Value, []) ->
-    Acc;
-iterate_status_output(Callback, Acc, Value, [{Id, _, _}|Rest]) ->
-    Acc1 = Callback(connection_notif(Id, Value), Acc),
-    iterate_status_output(Callback, Acc1, Value, Rest).
-
-connection_notif(Id, Value) ->
-    #status{type = connection, id = Id, value = Value}.
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs

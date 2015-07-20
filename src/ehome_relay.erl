@@ -16,7 +16,7 @@
 %% API
 -export([start_link/2]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -record(state, {
     status = false :: boolean(),
@@ -31,20 +31,14 @@ start_link(SchemaId, Id) ->
 
 
 init({SchemaId, Id}) ->
-    ehome_dispatcher:publish([status, relay, SchemaId, Id], false),
+    ehome_dispatcher:publish([status, relay, SchemaId, Id], false, true),
     {[], #state{schema_id = SchemaId, id = Id}}.
 
 new_inputs([Input], _OldInputs,
         #state{schema_id = SchemaId, id = Id} = State) ->
-    ehome_dispatcher:publish([status, relay, SchemaId, Id], Input),
+    ehome_dispatcher:publish([status, relay, SchemaId, Id], Input, true),
     State#state{status = Input}.
-
-iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(create_notif(Id, Status), Acc).
 
 control(Type, Message, _Inner) ->
     io:format("ehome_relay: un-supported message ~p/~p~n", [Type, Message]),
     false.
-
-create_notif(Id, Status) ->
-    #status{type = relay, id = Id, value = Status}.

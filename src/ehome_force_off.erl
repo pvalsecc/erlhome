@@ -14,7 +14,7 @@
 %% API
 -export([start_link/2]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -record(state, {xor_value = false :: boolean()}).
 
@@ -28,9 +28,6 @@ new_inputs([Main, true], [_, false], State) ->
     {new_outputs, [false], State#state{xor_value = Main}};
 new_inputs([Main, _], _OldInputs, #state{xor_value = Xor} = State) ->
     {new_outputs, [Main xor Xor], State}.
-
-iterate_status(_Callback, Acc, _Inner) ->
-    Acc.
 
 control(Type, Message, _Inner) ->
     io:format("ehome_force_off: un-supported message ~p/~p~n",

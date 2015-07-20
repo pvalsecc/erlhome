@@ -373,17 +373,17 @@ get_notif_path(Action, SchemaId, #connection{id = Id}) ->
     [db, Action, connection, SchemaId, Id].
 
 notify_sub_creation(SchemaId, Sub) ->
-    ehome_dispatcher:publish(get_notif_path(create, SchemaId, Sub), Sub).
+    ehome_dispatcher:publish(get_notif_path(create, SchemaId, Sub), Sub, false).
 
 notify_sub_update(SchemaId, Sub, PrevSub) ->
     ehome_dispatcher:publish(get_notif_path(update, SchemaId, Sub),
-                             {Sub, PrevSub}).
+                             {Sub, PrevSub}, false).
 
 notify_schema_deletion(#schema{id = Id, elements = Elements}) ->
     lists:foreach(fun(E) -> notify_sub_deletion(Id, E) end, Elements).
 
 notify_sub_deletion(SchemaId, Sub) ->
-    ehome_dispatcher:publish(get_notif_path(delete, SchemaId, Sub), Sub).
+    ehome_dispatcher:publish(get_notif_path(delete, SchemaId, Sub), Sub, false).
 
 modify_schema(SchemaId, Fun,
         #state{schemas = Schemas} = State) ->

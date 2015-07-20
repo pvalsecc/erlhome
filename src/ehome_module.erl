@@ -12,7 +12,7 @@
 %% API
 -export([start_link/3]).
 
--export([init/1, iterate_status/3, new_inputs/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -behavior(ehome_element).
 
@@ -36,12 +36,10 @@ start_link(SchemaId, Id, Config) ->
 init({SchemaId, Id, Config}) ->
     MqttPath = subscribe(ehome_utils:parse_path(maps:get(<<"mqtt_path">>,
         Config, undefined))),
-    Status = get_value(MqttPath),
     State = #state{schema_id = SchemaId, id = Id, mqtt_path = MqttPath,
-        status = Status, timeout =
-        application:get_env(erlhome, module_retry_interval,
+        timeout = application:get_env(erlhome, module_retry_interval,
             ?RETRY_INTERVAL)},
-    {[Status], notif_web(State)}.
+    {[false], notif_web(State)}.
 
 new_inputs([true, _], [false, _], State) ->
     force(State, true);
@@ -50,16 +48,11 @@ new_inputs([_, true], [_, false], State) ->
 new_inputs(_Inputs, _OldInputs, State) ->
     State.
 
-iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(#status{type = switch, id = Id, value = Status}, Acc).
-
 control(config, #{<<"mqtt_path">> := MqttPath}, State) ->
     case subscribe(ehome_utils:parse_path(MqttPath)) of
         undefined -> false;
         NewMqttPath ->
-            Status = get_value(NewMqttPath),
-            NewState = State#state{mqtt_path = NewMqttPath, status = Status},
-            {new_outputs, [Status], notif_web(NewState)}
+            State#state{mqtt_path = NewMqttPath}
     end;
 control(switch, Value, #state{status = Value} = State) ->
     State; %no change
@@ -94,19 +87,14 @@ force(State, Value) ->
     notif_mqtt(State2, Value).
 
 notif_web(#state{schema_id = SchemaId, id = Id, status = Status} = State) ->
-    ehome_dispatcher:publish([status, switch, SchemaId, Id], Status),
+    ehome_dispatcher:publish([status, switch, SchemaId, Id], Status, true),
     State.
 
 notif_mqtt(#state{mqtt_path = undefined} = State, _Status) ->
     State;
 notif_mqtt(#state{mqtt_path = Path} = State, Status) ->
-    ehome_dispatcher:publish([mqtt, set | Path], Status),
+    ehome_dispatcher:publish([mqtt, set | Path], Status, false),
     State.
-
-get_value(undefined) ->
-    false;
-get_value(Path) ->
-    ehome_utils:maybe(ehome_mqtt_tree:get_value(Path), false).
 
 start_timer(#state{timeout = Timeout} = State, Value) ->
     State2 = cancel_timer(State),
@@ -148,7 +136,7 @@ nominal_test() ->
         [false] = ehome_element:get_outputs(Module),
 
         ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary,
-            "level"], true),
+            "level"], true, false),
         ehome_dispatcher:sync(),
         test_utils:wait_queue_empty(Module),
         [true] = ehome_element:get_outputs(Module),
@@ -165,7 +153,7 @@ nominal_test() ->
         [true] = ehome_element:get_outputs(Module),
 
         ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary,
-            "level"], false),
+            "level"], false, false),
         ehome_dispatcher:sync(),
         test_utils:wait_queue_empty(Module),
         [false] = ehome_element:get_outputs(Module),
@@ -196,7 +184,7 @@ retry_test() ->
                 dispatcher_recorder:get_events(),
 
             ehome_dispatcher:publish([mqtt, get, 2, 1, switch_binary,
-                "level"], true),
+                "level"], true, false),
             ehome_dispatcher:sync(),
             test_utils:wait_queue_empty(Module),
             [true] = ehome_element:get_outputs(Module),

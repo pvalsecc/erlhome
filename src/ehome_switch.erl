@@ -16,7 +16,7 @@
 %% API
 -export([start_link/2, switch/2, control/3]).
 
--export([init/1, new_inputs/3, iterate_status/3]).
+-export([init/1, new_inputs/3]).
 
 -record(state, {
     schema_id :: integer(),
@@ -34,15 +34,12 @@ switch(Gate, Value) ->
     ehome_element:new_outputs(Gate, [Value]).
 
 init({SchemaId, Id}) ->
-    ehome_dispatcher:publish([status, switch, SchemaId, Id], false),
+    ehome_dispatcher:publish([status, switch, SchemaId, Id], false, true),
     {[false], #state{schema_id = SchemaId, id = Id}}.
 
 new_inputs(_Inputs, _OldInputs, _State) ->
     %no input => should not be called
     erlang:error(not_implemented).
-
-iterate_status(Callback, Acc, #state{id = Id, status = Status}) ->
-    Callback(#status{type = switch, id = Id, value = Status}, Acc).
 
 control(<<"switch">>, Message, Inner)
         when is_boolean(Message) ->
@@ -56,7 +53,7 @@ control(Type, Message, _Inner) ->
     false.
 
 new_value(Value, #state{schema_id = SchemaId, id = Id} = Inner) ->
-    ehome_dispatcher:publish([status, switch, SchemaId, Id], Value),
+    ehome_dispatcher:publish([status, switch, SchemaId, Id], Value, true),
     {new_outputs, [Value], Inner#state{status = Value}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -12,7 +12,7 @@
 -behaviour(ehome_element).
 
 %% API
--export([init/1, new_inputs/3, iterate_status/3, control/3, start_link/2]).
+-export([init/1, new_inputs/3, control/3, start_link/2]).
 
 start_link(SchemaId, Id) ->
     ehome_element:start_link(SchemaId, Id, ehome_d_flipflop, 2, 1, []).
@@ -24,9 +24,6 @@ new_inputs([D, true], [_, false], State) ->
     {new_outputs, [D], State};
 new_inputs([_D, _Clock], _OldInputs, State) ->
     State.
-
-iterate_status(_Callback, Acc, _Inner) ->
-    Acc.
 
 control(Type, Message, _Inner) ->
     io:format("ehome_d_flipflop: un-supported message ~p/~p~n",

@@ -247,7 +247,7 @@ from_mqtt(["zwave", "get", "devices", Device, "instances", Instance,
     case ehome_vtree:set_value(Path, Message, Root) of
         {NewRoot, true} ->
             lager:debug("~p = ~p", [Path, Message]),
-            ehome_dispatcher:publish([mqtt, get | Path], Message),
+            ehome_dispatcher:publish([mqtt, get | Path], Message, true),
             State#state{cache = NewRoot};
         {_, false} ->
             State

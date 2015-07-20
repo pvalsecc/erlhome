@@ -14,7 +14,7 @@
 %% API
 -export([up_start_link/2, down_start_link/2, both_start_link/2]).
 
--export([init/1, new_inputs/3, iterate_status/3, control/3]).
+-export([init/1, new_inputs/3, control/3]).
 
 -record(state, {
     trigger :: up|down|both
@@ -53,9 +53,6 @@ new_inputs([Input], _OldInputs, State) ->
         false ->
             State
     end.
-
-iterate_status(_Callback, Acc, _Inner) ->
-    Acc.
 
 control(Type, Message, _Inner) ->
     io:format("ehome_edge_gate: un-supported message ~p/~p~n",

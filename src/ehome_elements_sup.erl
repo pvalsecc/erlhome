@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, iterate_status/2, control/3, stop/1, handle_event/2]).
+-export([start_link/0, control/3, stop/1, handle_event/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -40,10 +40,6 @@
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
--spec(iterate_status(Callback :: status_callback(), Acc :: any()) -> any()).
-iterate_status(Callback, Acc) ->
-    gen_server:call(?MODULE, {iterate_status, Callback, Acc}).
 
 -spec(control(Id :: integer(), Type :: binary(), Message :: any()) ->
     true|false).
@@ -97,8 +93,6 @@ init([]) ->
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), Reply :: term(), NewState :: #state{}} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_call({iterate_status, Callback, Acc}, _From, State) ->
-    {reply, iterate_status(Callback, Acc, State), State};
 handle_call({control, Id, Type, Message}, _From, State) ->
     {reply, control(Id, Type, Message, State), State};
 handle_call(stop, _From, State) ->
@@ -289,14 +283,6 @@ handle_event([db, update, connection, SchemaId, Id],
 handle_event(Path, _Event, State) ->
     io:format("ehome_elements_sup: unknown event: ~p~n", [Path]),
     State.
-
-iterate_status(Callback, Acc, #state{elements = Elements}) ->
-    iterate_status(Callback, Acc, Elements);
-iterate_status(_Callback, Acc, []) ->
-    Acc;
-iterate_status(Callback, Acc, [#element_mapping{pid = Pid} | Rest]) ->
-    Acc1 = ehome_element:iterate_status(Pid, Callback, Acc),
-    iterate_status(Callback, Acc1, Rest).
 
 control(Id, Type, Message, State) ->
     case pid_from_id(Id, State) of
