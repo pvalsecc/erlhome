@@ -227,7 +227,7 @@ function createSchemaToolbar(graph) {
 }
 
 function updateStatusCache(graph, message) {
-    graph.statusCache[message.id] = message;
+    graph.statusCache[message.path[3]] = message;
 }
 
 function replayStatusCache(graph) {
@@ -242,16 +242,22 @@ function replayStatusCacheFor(graph, id) {
     if(message) handleNotif(graph, graph.paper, message);
 }
 
+function clearStatusCache(graph) {
+    graph.statusCache = {};
+}
+
 function handleNotif(graph, paper, message) {
     updateStatusCache(graph, message);
-
+    if(message.path[0] != 'status') return;
+    var type = message.path[1];
+    var id = message.path[3];
     var cell;
-    if(message.type == 'relay' || message.type == 'switch') {
-        cell = graph.getCell(graphId(message.id));
-    } else if(message.type == 'connection' && graph.connectionStore) {
-        var element = graph.connectionStore.getById(message.id);
+    if(type == 'relay' || type == 'switch') {
+        cell = graph.getCell(graphId(id));
+    } else if(type == 'connection' && graph.connectionStore) {
+        var element = graph.connectionStore.getById(id);
         if(element) {
-            cell = graph.connectionStore.getById(message.id).graphLink;
+            cell = element.graphLink;
         }
     }
 
@@ -385,6 +391,7 @@ function createSchema(name, grid) {
             delete graph.elementStore;
             delete graph.connectionStore;
             graph.clear();
+            clearStatusCache(graph);
             graph.notifListener.send("unsubscribe");
 
             if(selections.length > 0 && !selections[0].phantom &&

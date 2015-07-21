@@ -31,8 +31,6 @@ websocket_info({event, Path, Value}, Req,
         State) ->
     {reply, build_message(Path, Value), Req, State}.
 
-build_message([status, Type, _SchemaId, Id], Value) ->
-    {text, jiffy:encode(#{type => Type, id => Id, value => Value})};
 build_message(Path, Value) ->
     {text, jiffy:encode(#{path => Path, value => Value})}.
 

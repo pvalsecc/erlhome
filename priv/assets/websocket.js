@@ -61,7 +61,7 @@ Ext.define('MyWebSocket', {
     },
 
     send: function(message) {
-        if(this.ws) {
+        if(this.ws && !this.openTask) {
             this.ws.send(message);
         }
     }
