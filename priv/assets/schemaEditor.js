@@ -1,11 +1,29 @@
+function fixText(dict) {
+    delete dict['attrs']['text'];
+    dict['attrs']['.inside'] =  {'text-transform': 'none', 'text-anchor': 'start',
+                                 fill: 'black',
+                                 ref: '.body', 'ref-x': 0.05, 'ref-y': .55,
+                                 'y-alignment': 'middle',
+                                 'font-weight': 'normal',
+                                 'font-size': '14px'},
+    dict['attrs']['.desc'] = {'text-transform': 'none', 'text-anchor': 'middle',
+                              fill: 'black',
+                              ref: '.body', 'ref-x': 0.5, 'ref-dy': 1.5,
+                              'y-alignment': 0.0, 'x-alignment': 0,
+                              'font-weight': 'normal',
+                              'font-size': '8px'}
+    return dict;
+}
+
 joint.shapes.logic.Box21 = joint.shapes.logic.IO.extend({
     markup: '<g class="rotatable"><g class="scalable"><rect class="body"/></g>'+
            '<circle class="input input1"/>'+
            '<circle  class="input input2"/><circle class="output"/>'+
            '<path class="wire wireIn1"/>'+
            '<path class="wire wireIn2"/>'+
-           '<path class="wire wireOut"/><text/></g>',
-    defaults: joint.util.deepSupplement({
+           '<path class="wire wireOut"/><text class="inside"/>'+
+           '<text class="desc"/></g>',
+    defaults: fixText(joint.util.deepSupplement({
         type: 'logic.Timer',
         size: { width: 60, height: 40 },
         attrs: {
@@ -21,10 +39,9 @@ joint.shapes.logic.Box21 = joint.shapes.logic.IO.extend({
             '.input2': { ref: '.body', 'ref-x': -27, 'ref-y': 0.7,
                          magnet: 'passive', port: 'in2' },
             '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
-                         magnet: true, port: 'out1' },
-            text: {'text-transform': 'none', 'ref-x': 0, 'text-anchor': 'left'}
+                         magnet: true, port: 'out1' }
         }
-    }, joint.shapes.logic.IO.prototype.defaults)
+    }, joint.shapes.logic.IO.prototype.defaults))
 });
 
 function createBox21Class(type, text) {
@@ -32,7 +49,7 @@ function createBox21Class(type, text) {
         defaults: joint.util.deepSupplement({
             type: 'logic.' + type,
             attrs: {
-                text: {text: text}
+                '.inside': {text: text}
             }
         }, joint.shapes.logic.Box21.prototype.defaults)
     })
@@ -42,8 +59,8 @@ joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
            '<circle class="input"/>'+
            '<circle class="output"/>'+
            '<path class="wire wireIn"/>'+
-           '<path class="wire wireOut"/><text/></g>',
-    defaults: joint.util.deepSupplement({
+           '<path class="wire wireOut"/><text class="inside"/><text class="desc"/></g>',
+    defaults: fixText(joint.util.deepSupplement({
         type: 'logic.Timer',
         size: { width: 60, height: 30 },
         attrs: {
@@ -55,10 +72,9 @@ joint.shapes.logic.Box11 = joint.shapes.logic.IO.extend({
             '.input': { ref: '.body', 'ref-x': -27, 'ref-y': 0.5,
                         magnet: 'passive', port: 'in1' },
             '.output': { ref: '.body', 'ref-dx': 27, 'ref-y': 0.5,
-                         magnet: true, port: 'out1' },
-            text: {'text-transform': 'none', 'ref-x': 0, 'text-anchor': 'left'}
+                         magnet: true, port: 'out1' }
         }
-    }, joint.shapes.logic.IO.prototype.defaults)
+    }, joint.shapes.logic.IO.prototype.defaults))
 });
 
 function createBox11Class(type, text) {
@@ -66,7 +82,7 @@ function createBox11Class(type, text) {
         defaults: joint.util.deepSupplement({
             type: 'logic.' + type,
             attrs: {
-                text: {text: text}
+                '.inside': {text: text}
             }
         }, joint.shapes.logic.Box11.prototype.defaults)
     })
@@ -74,8 +90,8 @@ function createBox11Class(type, text) {
 
 createBox21Class('Timer', 'start↑\nreset↑');
 createBox21Class('DFlipFlop', 'D\nclock↑');
-createBox21Class('ForceOff', 'in\noff↑');
-createBox21Class('Module', 'on↑\noff↑');
+createBox21Class('ForceOff', 'IN\nOFF↑');
+createBox21Class('Module', 'ON↑\nOFF↑');
 createBox11Class('UpEdge', '↑edge');
 createBox11Class('DownEdge', '↓edge');
 createBox11Class('BothEdge', '↕edge');
@@ -109,10 +125,14 @@ function parsePort(port) {
 }
 
 function createCell(model) {
+    attrs = {
+        '.desc': {text: model.get('desc')}
+    }
     return new TYPE2SHAPE[model.get('type')]({
         id: graphId(model.get('id')),
         position: {x: model.get('x'), y: model.get('y')},
-        element: model
+        element: model,
+        attrs: attrs
     });
 }
 

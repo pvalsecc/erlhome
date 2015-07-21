@@ -12,7 +12,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/2, get_map/1, set/3, remove/2]).
+-export([start_link/2, get_map/1, set/3, remove/2, get/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -47,6 +47,10 @@ start_link(Persistent, Name) ->
 get_map(Name) ->
     Pmap = gen_server:call(Name, get_pmap),
     ehome_pmap:get_map(Pmap).
+
+get(Name, Key) ->
+    Pmap = gen_server:call(Name, get_pmap),
+    ehome_pmap:get(Pmap, Key).
 
 set(Name, Key, Value) when is_binary(Value) ->
     gen_server:cast(Name, {set, Key, Value}).

@@ -44,6 +44,10 @@
     fill: #ffffff;
 }
 
+.element.on .desc {
+    fill: #000000;
+}
+
 .element.off .body {
     fill: #cc2e71;
     stroke: #ae2760;
@@ -55,4 +59,8 @@
 
 .element.off text {
     fill: #ffffff;
+}
+
+.element.off .desc {
+    fill: #000000;
 }
