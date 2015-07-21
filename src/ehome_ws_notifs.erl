@@ -17,25 +17,48 @@
 -record(state, {}).
 
 init(Req, _Opts) ->
-    Self = self(),
-    ehome_dispatcher:subscribe([status, all], Self, fun(Path, Value) ->
-        Self ! {event, Path, Value}
-    end),
+    {Host, _} = cowboy_req:peer(Req),
+    lager:md([{desc, io_lib:format("client=~p", [Host])}]),
     {cowboy_websocket, Req, #state{}}.
     %TODO: add 60s timeout and have the client ping every 30s
 
 websocket_handle({text, Text}, Req, State) ->
-    %TODO: could have message to set a filter for a schema_id and reduce the traffic
-    io:format("websocket_handle: ~p~n", [Text]),
+    {Command, Param} = parse_command(Text),
+    handle_command(Command, Param),
     {ok, Req, State}.
 
-websocket_info({event, [status, Type, _SchemaId, Id], Value}, Req,
+websocket_info({event, Path, Value}, Req,
         State) ->
-    {reply, build_message(Type, Id, Value), Req, State}.
+    {reply, build_message(Path, Value), Req, State}.
 
-build_message(Type, Id, Value) ->
-    {text, jiffy:encode(#{type => Type, id => Id, value => Value})}.
+build_message([status, Type, _SchemaId, Id], Value) ->
+    {text, jiffy:encode(#{type => Type, id => Id, value => Value})};
+build_message(Path, Value) ->
+    {text, jiffy:encode(#{path => Path, value => Value})}.
 
 terminate(_Reason, _Req, State) ->
     ehome_dispatcher:unsubscribe(self()),
     State.
+
+parse_command(Text) ->
+    {SplitPos, _} = binary:match(Text, <<" ">>),
+    <<Command:SplitPos/binary, " ", Param/binary>> = Text,
+    {Command, Param}.
+
+handle_command(<<"subscribe">>, PathTxt) ->
+    Path = ehome_utils:parse_path(PathTxt),
+    Self = self(),
+    lager:debug("subscribe to ~p", [Path]),
+    ehome_dispatcher:subscribe(Path, Self, fun(ActualPath, Value) ->
+        Self ! {event, ActualPath, Value}
+    end).
+
+%%%===================================================================
+%%% Tests
+%%%===================================================================
+
+-include_lib("eunit/include/eunit.hrl").
+
+parse_command_test() ->
+    {<<"subscribe">>, <<"[status, all]">>} =
+        parse_command(<<"subscribe [status, all]">>).

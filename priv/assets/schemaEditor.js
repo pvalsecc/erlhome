@@ -461,6 +461,9 @@ function createSchema(name, grid) {
                 notifListener.on('message', function(message) {
                     handleNotif(graph, paper, Ext.decode(message));
                 });
+                notifListener.on('open', function() {
+                    notifListener.send('subscribe [status, all]');
+                });
                 paper.on('cell:pointerclick', function(cell) {
                     handleClick(graph, cell);
                 });

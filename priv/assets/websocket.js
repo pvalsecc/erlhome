@@ -15,6 +15,7 @@ Ext.define('MyWebSocket', {
 
     onOpen: function(data) {
         this.stopRetry();
+        this.fireEvent("open", this);
     },
 
     onMessage: function(data) {
@@ -57,5 +58,9 @@ Ext.define('MyWebSocket', {
         if(this.ws) {
             this.ws.close();
         }
+    },
+
+    send: function(message) {
+        this.ws.send(message);
     }
 });

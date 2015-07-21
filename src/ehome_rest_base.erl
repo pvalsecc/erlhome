@@ -14,6 +14,8 @@
     content_types_accepted/2]).
 
 init(Req, Opts) ->
+    {Host, _} = cowboy_req:peer(Req),
+    lager:md([{desc, io_lib:format("client=~p", [Host])}]),
     {cowboy_rest, Req, Opts}.
 
 allowed_methods(Req, State) ->
