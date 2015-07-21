@@ -55,7 +55,7 @@ resource_exists(Req, _State) ->
 to_json(Req, index) ->
     {jiffy:encode([<<"switch_binary">>]), Req, index};
 to_json(Req, List) ->
-    Names = ehome_names:get_map(),
+    Names = ehome_map_service:get_map(names),
     {jiffy:encode(format(List, Names)), Req, List}.
 
 format(Entries, Names) ->
@@ -74,7 +74,7 @@ format_one({[DeviceId, InstanceId | _] = All, Value}, Names) ->
 from_json(Req, [{[DeviceId, InstanceId, switch_binary, "level"], _Value}] = What) ->
     {ok, Json, Req2} = cowboy_req:body(Req),
     #{<<"desc">> := Desc} = json2sub(Json),
-    ehome_names:set([DeviceId, InstanceId], Desc),
+    ehome_map_service:set(names, [DeviceId, InstanceId], Desc),
     {true, Req2, What}.
 
 json2sub(Json) ->

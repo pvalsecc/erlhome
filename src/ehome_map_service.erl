@@ -6,13 +6,13 @@
 %%% @end
 %%% Created : 07. Jul 2015 3:54 PM
 %%%-------------------------------------------------------------------
--module(ehome_names).
+-module(ehome_map_service).
 -author("pvalsecc").
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, get_map/0, set/2, remove/1]).
+-export([start_link/2, get_map/1, set/3, remove/2]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -38,20 +38,21 @@
 %%
 %% @end
 %%--------------------------------------------------------------------
--spec(start_link(boolean()) ->
+-spec(start_link(boolean(), atom()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
-start_link(Persistent) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, Persistent, []).
+start_link(Persistent, Name) ->
+    gen_server:start_link({local, Name}, ?MODULE,
+        {Persistent, atom_to_list(Name)}, []).
 
-get_map() ->
-    Pmap = gen_server:call(?SERVER, get_pmap),
+get_map(Name) ->
+    Pmap = gen_server:call(Name, get_pmap),
     ehome_pmap:get_map(Pmap).
 
-set(Key, Value) when is_binary(Value) ->
-    gen_server:cast(?SERVER, {set, Key, Value}).
+set(Name, Key, Value) when is_binary(Value) ->
+    gen_server:cast(Name, {set, Key, Value}).
 
-remove(Key) ->
-    gen_server:cast(?SERVER, {remove, Key}).
+remove(Name, Key) ->
+    gen_server:cast(Name, {remove, Key}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -71,8 +72,8 @@ remove(Key) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init(Persistent) ->
-    {ok, #state{pmap = ehome_pmap:new("names", Persistent)}}.
+init({Persistent, Name}) ->
+    {ok, #state{pmap = ehome_pmap:new(Name, Persistent)}}.
 
 %%--------------------------------------------------------------------
 %% @private
