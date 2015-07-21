@@ -41,9 +41,13 @@ terminate(_Reason, _Req, State) ->
     State.
 
 parse_command(Text) ->
-    {SplitPos, _} = binary:match(Text, <<" ">>),
-    <<Command:SplitPos/binary, " ", Param/binary>> = Text,
-    {Command, Param}.
+    case binary:match(Text, <<" ">>) of
+        {SplitPos, _} ->
+            <<Command:SplitPos/binary, " ", Param/binary>> = Text,
+            {Command, Param};
+        nomatch ->
+            {Text, <<>>}
+    end.
 
 handle_command(<<"subscribe">>, PathTxt) ->
     Path = ehome_utils:parse_path(PathTxt),
@@ -51,7 +55,10 @@ handle_command(<<"subscribe">>, PathTxt) ->
     lager:debug("subscribe to ~p", [Path]),
     ehome_dispatcher:subscribe(Path, Self, fun(ActualPath, Value) ->
         Self ! {event, ActualPath, Value}
-    end).
+    end);
+handle_command(<<"unsubscribe">>, <<>>) ->
+    lager:debug("unsubscribe all"),
+    ehome_dispatcher:unsubscribe(self()).
 
 %%%===================================================================
 %%% Tests
@@ -61,4 +68,5 @@ handle_command(<<"subscribe">>, PathTxt) ->
 
 parse_command_test() ->
     {<<"subscribe">>, <<"[status, all]">>} =
-        parse_command(<<"subscribe [status, all]">>).
+        parse_command(<<"subscribe [status, all]">>),
+    {<<"unsubscribe">>, <<>>} = parse_command(<<"unsubscribe">>).

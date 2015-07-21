@@ -128,10 +128,6 @@ function createWire(model) {
 }
 
 function loadGraph(graph, schema) {
-    if(!schema) {
-        return;
-    }
-
     graph.elementStore = createSubStore('Element', 'elements', schema.get('id'));
     graph.connectionStore =
         createSubStore('Connection', 'connections', schema.get('id'));
@@ -389,13 +385,19 @@ function createSchema(name, grid) {
             delete graph.elementStore;
             delete graph.connectionStore;
             graph.clear();
+            graph.notifListener.send("unsubscribe");
 
             if(selections.length > 0 && !selections[0].phantom &&
                !selections[0].erased) {
+                var schema = selections[0];
+                graph.schemaId = schema.get("id");
                 toolbar.enable();
-                loadGraph(graph, selections[0]);
+                loadGraph(graph, schema);
+                graph.notifListener.send('subscribe [status, any, ' +
+                                         graph.schemaId + ', all]');
             } else {
                 toolbar.disable();
+                delete graph.schemaId;
             }
     }
 
@@ -462,8 +464,12 @@ function createSchema(name, grid) {
                     handleNotif(graph, paper, Ext.decode(message));
                 });
                 notifListener.on('open', function() {
-                    notifListener.send('subscribe [status, all]');
+                    if(graph.schemaId) {
+                        notifListener.send('subscribe [status, any, ' +
+                                           graph.schemaId + ', all]');
+                    }
                 });
+                graph.notifListener = notifListener;
                 paper.on('cell:pointerclick', function(cell) {
                     handleClick(graph, cell);
                 });
