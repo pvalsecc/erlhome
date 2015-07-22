@@ -34,11 +34,12 @@ start_link(SchemaId, Id, Config) ->
         {SchemaId, Id, Config}).
 
 init({SchemaId, Id, Config}) ->
-    MqttPath = subscribe(ehome_utils:parse_path(maps:get(<<"mqtt_path">>,
-        Config, undefined))),
+    MqttPath = ehome_utils:parse_path(maps:get(<<"mqtt_path">>,
+        Config, undefined)),
     State = #state{schema_id = SchemaId, id = Id, mqtt_path = MqttPath,
         timeout = application:get_env(erlhome, module_retry_interval,
             ?RETRY_INTERVAL)},
+    subscribe(MqttPath, State),
     {[false], notif_web(State)}.
 
 new_inputs([true, _], [false, _], State) ->
@@ -49,7 +50,7 @@ new_inputs(_Inputs, _OldInputs, State) ->
     State.
 
 control(config, #{<<"mqtt_path">> := MqttPath}, State) ->
-    case subscribe(ehome_utils:parse_path(MqttPath)) of
+    case subscribe(ehome_utils:parse_path(MqttPath), State) of
         undefined -> false;
         NewMqttPath ->
             State#state{mqtt_path = NewMqttPath}
@@ -70,15 +71,28 @@ control(Type, Message, _Inner) ->
     lager:error("ehome_module: un-supported message ~p/~p", [Type, Message]),
     false.
 
-subscribe(undefined) ->
+subscribe(undefined, State) ->
+    notif_desc(<<"">>, State),
     undefined;
-subscribe(Path) ->
+subscribe(Path, State) ->
     Self = self(),
+    notif_desc(get_desc(Path), State),
     ok = ehome_dispatcher:unsubscribe(Self),
     ok = ehome_dispatcher:subscribe([mqtt, get | Path], Self, fun(_Topic, Value) ->
         ehome_element:control(Self, switch, Value)
     end),
     Path.
+
+notif_desc(Desc, #state{schema_id = SchemaId, id = Id}) ->
+    ehome_dispatcher:publish([status, desc, SchemaId, Id], Desc, true).
+
+get_desc([DeviceId, InstanceId | _]) ->
+    case ehome_map_service:get(names, [DeviceId, InstanceId]) of
+        undefined ->
+            Name = io_lib:format("~p/~p", [DeviceId, InstanceId]),
+            list_to_binary(Name);
+        Name -> Name
+    end.
 
 force(#state{status = Value} = State, Value) ->
     State; %no value change
@@ -117,8 +131,10 @@ cancel_timer(#state{timer_ref = Timer} = State) ->
 
 test_env(Test) ->
     test_utils:mqtt_tree_env(fun() ->
-        dispatcher_recorder:test_env([mqtt, set, all], fun() ->
-            Test()
+        test_utils:names_env(fun() ->
+            dispatcher_recorder:test_env([mqtt, set, all], fun() ->
+                Test()
+            end)
         end)
     end).
 

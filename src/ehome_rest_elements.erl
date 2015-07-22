@@ -39,24 +39,7 @@ subId2Url(SchemaId, SubId) ->
 sub2json(SchemaId, #element{id = Id, type = Type, x = X, y = Y,
                             config = Config}) ->
     Href = subId2Url(SchemaId, Id),
-    Ret = #{id =>Id, type => Type, x => X, y => Y, href => Href, config =>
-    Config},
-    add_path_desc(maps:get(<<"mqtt_path">>, Config, undefined), Ret).
-
-add_path_desc(undefined, Ret) ->
-    Ret;
-add_path_desc(Path, Ret) ->
-    case ehome_utils:parse_path(Path) of
-        undefined -> Ret;
-        [DeviceId, InstanceId | _] ->
-            Desc = case ehome_map_service:get(names, [DeviceId, InstanceId]) of
-                undefined ->
-                    Name = io_lib:format("~p/~p", [DeviceId, InstanceId]),
-                    list_to_binary(Name);
-                Val -> Val
-            end,
-            Ret#{desc => Desc}
-    end.
+    #{id =>Id, type => Type, x => X, y => Y, href => Href, config => Config}.
 
 json2sub(Json) ->
     Decoded = jiffy:decode(Json, [return_maps]),

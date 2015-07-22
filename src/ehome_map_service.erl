@@ -96,6 +96,8 @@ init({Persistent, Name}) ->
     {stop, Reason :: term(), NewState :: #state{}}).
 handle_call(get_pmap, _From, #state{pmap = Pmap} = State) ->
     {reply, Pmap, State};
+handle_call(stop, _From, State) ->
+    {stop, normal, ok, State};
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 

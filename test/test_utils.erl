@@ -11,7 +11,7 @@
 
 %% API
 -export([wait_queue_empty/1, wait_queues_empty/1, dispatcher_env/1,
-    mqtt_tree_env/1, app_env_env/3]).
+    mqtt_tree_env/1, app_env_env/3, names_env/1]).
 
 wait_queues_empty(Pids) ->
     lists:foreach(fun wait_queue_empty/1, Pids).
@@ -50,3 +50,11 @@ mqtt_tree_env(Test) ->
             end
         end)
     end).
+
+names_env(Test) ->
+    ehome_map_service:start_link(false, names),
+    try
+        Test()
+    after
+        gen_server:call(names, stop)
+    end.

@@ -5,7 +5,7 @@ function fixText(dict) {
                                  ref: '.body', 'ref-x': 0.05, 'ref-y': .55,
                                  'y-alignment': 'middle',
                                  'font-weight': 'normal',
-                                 'font-size': '14px'},
+                                 'font-size': '13px'},
     dict['attrs']['.desc'] = {'text-transform': 'none', 'text-anchor': 'middle',
                               fill: 'black',
                               ref: '.body', 'ref-x': 0.5, 'ref-dy': 1.5,
@@ -125,14 +125,10 @@ function parsePort(port) {
 }
 
 function createCell(model) {
-    attrs = {
-        '.desc': {text: model.get('desc')}
-    }
     return new TYPE2SHAPE[model.get('type')]({
         id: graphId(model.get('id')),
         position: {x: model.get('x'), y: model.get('y')},
-        element: model,
-        attrs: attrs
+        element: model
     });
 }
 
@@ -247,7 +243,13 @@ function createSchemaToolbar(graph) {
 }
 
 function updateStatusCache(graph, message) {
-    graph.statusCache[message.path[3]] = message;
+    var type = message.path[1];
+    var id = message.path[3];
+    var sub = graph.statusCache[id];
+    if(!sub) {
+        graph.statusCache[id] = sub = {};
+    }
+    sub[type] = message;
 }
 
 function replayStatusCache(graph) {
@@ -258,8 +260,11 @@ function replayStatusCache(graph) {
 }
 
 function replayStatusCacheFor(graph, id) {
-    var message = graph.statusCache[id];
-    if(message) handleNotif(graph, graph.paper, message);
+    var types = graph.statusCache[id];
+    if(!types) return;
+    for(var type in types) {
+        handleNotif(graph, graph.paper, types[type]);
+    }
 }
 
 function clearStatusCache(graph) {
@@ -267,24 +272,30 @@ function clearStatusCache(graph) {
 }
 
 function handleNotif(graph, paper, message) {
+    function onOff(cell) {
+        if(cell) {
+            var view = V(paper.findViewByModel(cell).el);
+            view.toggleClass('on', message.value);
+            view.toggleClass('off', !message.value);
+        }
+    }
     updateStatusCache(graph, message);
     if(message.path[0] != 'status') return;
     var type = message.path[1];
     var id = message.path[3];
-    var cell;
     if(type == 'relay' || type == 'switch') {
-        cell = graph.getCell(graphId(id));
+        onOff(graph.getCell(graphId(id)));
     } else if(type == 'connection' && graph.connectionStore) {
         var element = graph.connectionStore.getById(id);
         if(element) {
-            cell = element.graphLink;
+            onOff(element.graphLink);
         }
-    }
-
-    if(cell) {
-        var view = V(paper.findViewByModel(cell).el);
-        view.toggleClass('on', message.value);
-        view.toggleClass('off', !message.value);
+    } else if(type == 'desc') {
+        var cell = graph.getCell(graphId(id));
+        console.log('desc = ', cell);
+        if(cell) {
+            cell.attr('.desc/text', message.value);
+        }
     }
 }
 
