@@ -17,6 +17,8 @@
 -export([init/1, new_inputs/3, control/3]).
 
 -record(state, {
+    schema_id :: integer(),
+    id :: integer(),
     delay = 2000 :: non_neg_integer(),
     waiting = false :: false | timer:tref()
 }).
@@ -24,12 +26,12 @@
 -spec(start_link(SchemaId :: integer(), Id :: integer(), Config :: map()) ->
     {ok, Pid :: pid()} | ignore | {error, Reason :: term()}).
 start_link(SchemaId, Id, Config) ->
-    ehome_element:start_link(SchemaId, Id, ?MODULE, 2, 1, Config).
+    ehome_element:start_link(SchemaId, Id, ?MODULE, 2, 1,
+        {SchemaId, Id, Config}).
 
-init(#{<<"delay">> := Delay}) ->
-    {[false], #state{delay = Delay}};
-init(_) ->
-    {[false], #state{delay = 2000}}.
+init({SchemaId, Id, Config}) ->
+    Delay = maps:get(<<"delay">>, Config, 2000),
+    {[false], set_desc(#state{delay = Delay, schema_id = SchemaId, id = Id})}.
 
 new_inputs([_, true], [_, false], State) ->
     % reset
@@ -54,11 +56,22 @@ new_inputs(_NewInputs, _OldInputs, State) ->
     State.
 
 control(config, #{<<"delay">> := Delay}, State) ->
-    State#state{delay = Delay};
+    set_desc(State#state{delay = Delay});
 control(Type, Message, _Inner) ->
     io:format("ehome_timer_gate: un-supported message ~p/~p~n",
         [Type, Message]),
     false.
+
+set_desc(#state{schema_id = SchemaId, id = Id, delay = Delay} = State) ->
+    ehome_dispatcher:publish([status, desc, SchemaId, Id], get_desc(Delay),
+        true),
+    State.
+
+get_desc(Delay) when Delay < 1000 ->
+    <<(integer_to_binary(Delay))/binary, "ms">>;
+get_desc(Delay) ->
+    <<(integer_to_binary(Delay div 1000))/binary, "s">>.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
