@@ -16,6 +16,7 @@
 %%%       connection/{SchemaId}/{SubId} -> boolean()
 %%%       switch/{SchemaId}/{SubId} -> boolean()
 %%%       relay/{SchemaId}/{SubId} -> boolean()
+%%%       timer/{SchemaId}/{SubId} -> boolean()
 %%%       desc/{SchemaId}/{SubId} -> binary()
 %%%   mqtt      %stuff to/from mqtt
 %%%       get/{DeviceId}/{InstanceId}/{Class}/... -> any()

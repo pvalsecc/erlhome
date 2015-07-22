@@ -283,7 +283,7 @@ function handleNotif(graph, paper, message) {
     if(message.path[0] != 'status') return;
     var type = message.path[1];
     var id = message.path[3];
-    if(type == 'relay' || type == 'switch') {
+    if(type == 'relay' || type == 'switch' || type == 'timer') {
         onOff(graph.getCell(graphId(id)));
     } else if(type == 'connection' && graph.connectionStore) {
         var element = graph.connectionStore.getById(id);

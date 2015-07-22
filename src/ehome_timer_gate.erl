@@ -44,19 +44,19 @@ new_inputs([true, _], [false, _],
     maybe_cancel(State),
     {new_outputs, [true], State};
 
-new_inputs([true, _], [false, _],
-        #state{delay = Delay} = State) ->
+new_inputs([true, _], [false, _], State) ->
     % start; trigger the timer
     maybe_cancel(State),
-    {ok, TRef} = timer:apply_after(Delay,
-        ehome_element, new_outputs, [self(), [true]]),
-    State#state{waiting = TRef};
+    start(State);
 
 new_inputs(_NewInputs, _OldInputs, State) ->
     State.
 
 control(config, #{<<"delay">> := Delay}, State) ->
     set_desc(State#state{delay = Delay});
+control(timer_triggered, _, State) ->
+    publish_status(false, State),
+    {new_outputs, [true], State};
 control(Type, Message, _Inner) ->
     io:format("ehome_timer_gate: un-supported message ~p/~p~n",
         [Type, Message]),
@@ -75,12 +75,20 @@ get_desc(Delay) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-maybe_cancel(#state{waiting = TRef}) ->
-    maybe_cancel(TRef);
-maybe_cancel(false) ->
+maybe_cancel(#state{waiting = false}) ->
     ok;
-maybe_cancel(TRef) ->
+maybe_cancel(#state{waiting = TRef} = State) ->
+    publish_status(false, State),
     timer:cancel(TRef).
+
+start(#state{delay = Delay} = State) ->
+    publish_status(true, State),
+    {ok, TRef} = timer:apply_after(Delay,
+        ehome_element, control, [self(), timer_triggered, undefined]),
+    State#state{waiting = TRef}.
+
+publish_status(Value, #state{schema_id = SchemaId, id = Id}) ->
+    ehome_dispatcher:publish([status, timer, SchemaId, Id], Value, true).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% UTs
