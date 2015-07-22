@@ -42,7 +42,7 @@ new_inputs([true, _], [false, _],
         #state{delay = 0, waiting = false} = State) ->
     % start; special case for delay = 0
     maybe_cancel(State),
-    {new_outputs, [true], State};
+    {new_outputs, [true], State#state{waiting = false}};
 
 new_inputs([true, _], [false, _], State) ->
     % start; trigger the timer
@@ -55,8 +55,9 @@ new_inputs(_NewInputs, _OldInputs, State) ->
 control(config, #{<<"delay">> := Delay}, State) ->
     set_desc(State#state{delay = Delay});
 control(timer_triggered, _, State) ->
+    maybe_cancel(State),
     publish_status(false, State),
-    {new_outputs, [true], State};
+    {new_outputs, [true], State#state{waiting = false}};
 control(Type, Message, _Inner) ->
     io:format("ehome_timer_gate: un-supported message ~p/~p~n",
         [Type, Message]),
