@@ -4,10 +4,8 @@ import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
 
 import org.apache.http.Header;
-import org.apache.http.HttpEntity;
 import org.apache.http.entity.StringEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,7 +39,7 @@ public class Element {
             desc = json.getString("value");
             Log.v(TAG, "New desc: " + desc);
         }
-        if(view != null) view.update();
+        if (view != null) view.update();
     }
 
     public boolean isStatus() {

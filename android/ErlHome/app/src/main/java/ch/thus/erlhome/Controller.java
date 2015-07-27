@@ -1,6 +1,5 @@
 package ch.thus.erlhome;
 
-import android.support.v13.app.FragmentStatePagerAdapter;
 import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -16,7 +15,6 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;

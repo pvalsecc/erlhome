@@ -1,7 +1,6 @@
 package ch.thus.erlhome;
 
 import android.content.Context;
-import android.widget.CompoundButton;
 import android.widget.Switch;
 
 public class ElementView extends Switch {

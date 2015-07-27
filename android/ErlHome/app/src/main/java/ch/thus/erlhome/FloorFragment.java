@@ -6,7 +6,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.Switch;
 
 import java.util.Collection;
 
@@ -45,9 +44,9 @@ public class FloorFragment extends Fragment {
     private void update(View view) {
         LinearLayout layout = (LinearLayout) view.findViewById(R.id.switches_layout);
         layout.removeAllViews();
-        if(schema == null) return;
+        if (schema == null) return;
         Collection<Element> elements = schema.getSwitches();
-        for(Element elem: elements) {
+        for (Element elem : elements) {
             addSwitch(layout, elem);
         }
     }

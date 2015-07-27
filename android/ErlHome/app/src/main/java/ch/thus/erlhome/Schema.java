@@ -53,7 +53,7 @@ public class Schema extends JsonHttpResponseHandler implements Comparable<Schema
     }
 
     private void queueMessage(int id, JSONObject json) {
-        if(messageQueue == null) return;
+        if (messageQueue == null) return;
         List<JSONObject> queue = messageQueue.get(id);
         if (queue == null) {
             queue = new ArrayList<JSONObject>(2);
@@ -87,7 +87,7 @@ public class Schema extends JsonHttpResponseHandler implements Comparable<Schema
             }
         }
         messageQueue = null;
-        if(view!=null) {
+        if (view != null) {
             view.update();
         }
     }
