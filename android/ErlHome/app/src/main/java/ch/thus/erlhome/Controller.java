@@ -1,5 +1,7 @@
 package ch.thus.erlhome;
 
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
@@ -22,28 +24,34 @@ import java.util.Map;
 
 public class Controller extends JsonHttpResponseHandler {
     private static final String TAG = "Controller";
-    private final WebSocketClient ws;
-    private AsyncHttpClient client = new AsyncHttpClient();
+    private WebSocketClient ws;
+    private final AsyncHttpClient client = new AsyncHttpClient();
     private URI baseUrl;
     private final Map<Integer, Schema> schemas = new HashMap<>();
     private FloorsPagerAdapter pagerAdapter;
 
 
-    public Controller(FloorsPagerAdapter pagerAdapter) {
+    public Controller(FloorsPagerAdapter pagerAdapter, String serverAddress) {
         this.pagerAdapter = pagerAdapter;
-        URI wsUri = null;
+        client.setLoggingEnabled(true);
+        connect(serverAddress);
+    }
+
+    private void connect(String serverAddress) {
+        final URI wsUri;
         try {
-            baseUrl = new URI("http://10.0.2.2:8080/");
-            wsUri = new URI("ws://10.0.2.2:8080/notifs");
+            baseUrl = new URI(serverAddress);
+            wsUri = new URI(baseUrl.resolve("/notifs").toString().replaceFirst("https?://", "ws://"));
         } catch (URISyntaxException e) {
             Log.e(TAG, "Bad", e);
+            return;
         }
-        client.setLoggingEnabled(true);
+        Log.i(TAG, "Connecting to " + baseUrl.toString());
         client.get(getUrl("schemas"), this);
         ws = new WebSocketClient(wsUri) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
-                Log.i(TAG, "WebSocket open");
+                Log.i(TAG, "WebSocket open: " + wsUri.toString());
                 send("subscribe [status, switch, all]");
                 send("subscribe [status, desc, all]");
             }

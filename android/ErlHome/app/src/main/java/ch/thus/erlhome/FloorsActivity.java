@@ -1,14 +1,17 @@
 package ch.thus.erlhome;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.view.Menu;
 import android.view.MenuItem;
 
 
-public class FloorsActivity extends Activity {
+public class FloorsActivity extends Activity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -35,10 +38,15 @@ public class FloorsActivity extends Activity {
         // primary sections of the activity.
         mSectionsPagerAdapter = new FloorsPagerAdapter(getFragmentManager());
 
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        String serverAddress = sharedPref.getString("server_address", "http://10.0.2.2:8080/");
+        mSectionsPagerAdapter.setServerAddress(serverAddress);
+        sharedPref.registerOnSharedPreferenceChangeListener(this);
+
+
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.pager);
         mViewPager.setAdapter(mSectionsPagerAdapter);
-
     }
 
 
@@ -56,8 +64,8 @@ public class FloorsActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
 
@@ -65,4 +73,11 @@ public class FloorsActivity extends Activity {
     }
 
 
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if(key.equals("server_address")) {
+            String serverAddress = sharedPreferences.getString("server_address", "");
+            mSectionsPagerAdapter.setServerAddress(serverAddress);
+        }
+    }
 }

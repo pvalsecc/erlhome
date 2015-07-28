@@ -2,6 +2,8 @@ package ch.thus.erlhome;
 
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.support.v13.app.FragmentStatePagerAdapter;
 import android.util.Log;
@@ -16,12 +18,15 @@ import java.util.List;
 public class FloorsPagerAdapter extends FragmentStatePagerAdapter {
 
     private static final String TAG = "SectionsPagerAdapter";
-    private final Controller controller;
+    private Controller controller;
     private List<Schema> schemas = Collections.EMPTY_LIST;
 
     public FloorsPagerAdapter(FragmentManager fm) {
         super(fm);
-        this.controller = new Controller(this);
+    }
+
+    public void setServerAddress(String serverAddress) {
+        this.controller = new Controller(this, serverAddress);
     }
 
     @Override
