@@ -32,6 +32,9 @@ import java.util.List;
  * API Guide</a> for more information on developing a Settings UI.
  */
 public class SettingsActivity extends PreferenceActivity {
+    public static final String SERVER_ADDRESS_ID = "server_address";
+    public static final String SERVER_ADDRESS_DEFAULT = "http://10.0.2.2:8080/";
+
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);

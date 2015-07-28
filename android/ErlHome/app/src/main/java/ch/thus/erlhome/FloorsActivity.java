@@ -39,7 +39,8 @@ public class FloorsActivity extends Activity implements SharedPreferences.OnShar
         mSectionsPagerAdapter = new FloorsPagerAdapter(getFragmentManager());
 
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-        String serverAddress = sharedPref.getString("server_address", "http://10.0.2.2:8080/");
+        String serverAddress = sharedPref.getString(SettingsActivity.SERVER_ADDRESS_ID,
+                SettingsActivity.SERVER_ADDRESS_DEFAULT);
         mSectionsPagerAdapter.setServerAddress(serverAddress);
         sharedPref.registerOnSharedPreferenceChangeListener(this);
 
@@ -64,9 +65,16 @@ public class FloorsActivity extends Activity implements SharedPreferences.OnShar
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        if (id == R.id.action_settings) {
-            startActivity(new Intent(this, SettingsActivity.class));
-            return true;
+        switch (id) {
+            case R.id.action_settings:
+                startActivity(new Intent(this, SettingsActivity.class));
+                return true;
+            case R.id.action_refresh:
+                SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+                String serverAddress = sharedPref.getString(SettingsActivity.SERVER_ADDRESS_ID,
+                        SettingsActivity.SERVER_ADDRESS_DEFAULT);
+                mSectionsPagerAdapter.setServerAddress(serverAddress);
+                return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -76,7 +84,8 @@ public class FloorsActivity extends Activity implements SharedPreferences.OnShar
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         if(key.equals("server_address")) {
-            String serverAddress = sharedPreferences.getString("server_address", "");
+            String serverAddress = sharedPreferences.getString(SettingsActivity.SERVER_ADDRESS_ID,
+                    SettingsActivity.SERVER_ADDRESS_DEFAULT);
             mSectionsPagerAdapter.setServerAddress(serverAddress);
         }
     }
