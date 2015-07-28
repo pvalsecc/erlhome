@@ -29,7 +29,7 @@ public class FloorsPagerAdapter extends FragmentStatePagerAdapter {
         Log.v(TAG, "getItem(" + String.valueOf(position) + ")");
         // getItem is called to instantiate the fragment for the given page.
         // Return a PlaceholderFragment (defined as a static inner class below).
-        return FloorFragment.newInstance(this.schemas.get(position));
+        return FloorFragment.newInstance(schemas.get(position));
     }
 
     @Override
@@ -40,5 +40,10 @@ public class FloorsPagerAdapter extends FragmentStatePagerAdapter {
     public void schemaChanges(List<Schema> schemas) {
         this.schemas = schemas;
         notifyDataSetChanged();
+    }
+
+    @Override
+    public CharSequence getPageTitle(int position) {
+        return schemas.get(position).getName();
     }
 }
