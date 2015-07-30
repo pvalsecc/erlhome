@@ -117,10 +117,21 @@ dumper({start, Name, undefined}, Indent) ->
     io:format("~s~p~n", [Indent, Name]),
     {fun dumper/2, "    " ++ Indent};
 dumper({start, Name, Value}, Indent) ->
-    io:format("~s~p = ~p~n", [Indent, Name, Value]),
+    case is_zero_string(Value, []) of
+        {true, String} -> io:format("~s~p = \"~s\"~n", [Indent, Name, String]);
+        _ -> io:format("~s~p = ~p~n", [Indent, Name, Value])
+    end,
     {fun dumper/2, "    " ++ Indent};
 dumper({stop, _Name}, [_, _, _, _ | Acc]) ->
     {undefined, Acc}.
+
+is_zero_string([0], Prev) ->
+    {true, lists:reverse(Prev)};
+is_zero_string([Cur|Rest], Prev) when is_integer(Cur), Cur >= 32, Cur < 127 ->
+    is_zero_string(Rest, [Cur|Prev]);
+is_zero_string(_, _Prev) ->
+    false.
+
 
 %%%===================================================================
 %%% Tests
