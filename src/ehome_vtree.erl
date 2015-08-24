@@ -140,9 +140,9 @@ is_zero_string(_, _Prev) ->
 -include_lib("eunit/include/eunit.hrl").
 
 set_value_test() ->
-    {T1, true} = set_value([a,b,c], 1, #node{}),
-    {T2, true} = set_value([a,b,d], 2, T1),
-    {_, false} = set_value([a,b,d], 2, T2),
+    {T1, true} = set_value([a, b, c], 1, #node{}),
+    {T2, true} = set_value([a, b, d], 2, T1),
+    {_, false} = set_value([a, b, d], 2, T2),
     #node{subs =
         #{a := #node{subs =
             #{b := #node{subs =
@@ -154,8 +154,8 @@ set_value_test() ->
     } = T2.
 
 simple_iterate_sub_test() ->
-    {T1, _} = set_value([a,b], 1, #node{}),
-    {T2, _} = set_value([a,d], 2, T1),
+    {T1, _} = set_value([a, b], 1, #node{}),
+    {T2, _} = set_value([a, d], 2, T1),
     {T3, _} = set_value([e], 3, T2),
     Calls = iterate(fun(Call, Acc) -> {undefined, [Call | Acc]} end,
         [], root, T3),
@@ -174,8 +174,8 @@ simple_iterate_sub_test() ->
     Expected = lists:reverse(Calls).
 
 change_iterate_sub_test() ->
-    {T1, _} = set_value([a,b], 1, #node{}),
-    {T2, _} = set_value([a,d], 2, T1),
+    {T1, _} = set_value([a, b], 1, #node{}),
+    {T2, _} = set_value([a, d], 2, T1),
     {T3, _} = set_value([e], 3, T2),
     Calls = iterate(fun(Call, Acc) -> {fun noop_iterator/2, [Call | Acc]} end,
         [], root,
@@ -187,10 +187,10 @@ change_iterate_sub_test() ->
     Expected = lists:reverse(Calls).
 
 get_test() ->
-    {Root, _} = set_value([a,b], 1, #node{}),
-    1 = get_value([a,b], Root),
-    undefined = get_value([a,c], Root),
-    undefined = get_value([c,f,e], Root).
+    {Root, _} = set_value([a, b], 1, #node{}),
+    1 = get_value([a, b], Root),
+    undefined = get_value([a, c], Root),
+    undefined = get_value([c, f, e], Root).
 
 build_test_tree() ->
     lists:foldl(fun({K, V}, Acc) ->
@@ -198,11 +198,11 @@ build_test_tree() ->
                     Ret
                 end, new(),
     [
-        {[a,b] ,2},
-        {[a,d] ,3},
-        {[a,d,e] ,4},
-        {[f] ,5},
-        {[g,b] ,6}
+        {[a, b], 2},
+        {[a, d], 3},
+        {[a, d, e], 4},
+        {[f], 5},
+        {[g, b], 6}
     ]).
 
 filter_iterator_test() ->
@@ -222,7 +222,7 @@ filter_iterator_single_test() ->
     {FilterIt, FilterAcc} = create_filter_iterator(Filter),
     {[], [], Filter, Actual} = iterate(FilterIt, FilterAcc, r, Root),
     Expected = [
-        {[r, a, b],2}
+        {[r, a, b], 2}
     ],
     Expected = lists:reverse(Actual).
 

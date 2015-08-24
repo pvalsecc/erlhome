@@ -333,10 +333,10 @@ stop() ->
 
 nominal_test() ->
     test_utils:dispatcher_env(fun() ->
-        Recorder1 = subscribe_recorder([1,2,3]),
-        Recorder2 = subscribe_recorder([toto,2,3]),
-        Recorder3 = subscribe_recorder([toto,any,3]),
-        Recorder4 = subscribe_recorder([toto,all]),
+        Recorder1 = subscribe_recorder([1, 2, 3]),
+        Recorder2 = subscribe_recorder([toto, 2, 3]),
+        Recorder3 = subscribe_recorder([toto, any, 3]),
+        Recorder4 = subscribe_recorder([toto, all]),
 
         sync(),
         [] = get_recorded(Recorder1),
@@ -370,11 +370,11 @@ store_test() ->
         ok = publish([toto, 2, 3], 1, true),
         ok = publish([toto, 4, 3], 1, false),
 
-        Recorder1 = subscribe_recorder([1,2,3]),
-        Recorder2 = subscribe_recorder([toto,2,3]),
-        Recorder3 = subscribe_recorder([toto,any,3]),
-        Recorder4 = subscribe_recorder([toto,all]),
-        Recorder5 = subscribe_recorder([toto,2,any]),
+        Recorder1 = subscribe_recorder([1, 2, 3]),
+        Recorder2 = subscribe_recorder([toto, 2, 3]),
+        Recorder3 = subscribe_recorder([toto, any, 3]),
+        Recorder4 = subscribe_recorder([toto, all]),
+        Recorder5 = subscribe_recorder([toto, 2, any]),
 
         sync(),
 
